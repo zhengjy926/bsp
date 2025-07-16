@@ -1,0 +1,65 @@
+/**
+  ******************************************************************************
+  * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
+  * @file        : stm32_pwm.h
+  * @author      : ZJY
+  * @version     : V1.0
+  * @data        : 2025-05-28
+  * @brief       : STM32 PWM驱动头文件
+  * @attattention: None
+  ******************************************************************************
+  * @history     :
+  *         V1.0 : 1.add pwm driver
+  *
+  *
+  ******************************************************************************
+  */
+#ifndef __STM32_PWM_H__
+#define __STM32_PWM_H__
+
+#ifdef __cplusplus
+ extern "C" {
+#endif /* __cplusplus */
+
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f4xx_hal.h"
+#include "pwm.h"
+
+/* Exported define -----------------------------------------------------------*/
+/**
+ * @brief 通道号转换为HAL通道值
+ */
+#define TIM_CH_TO_HAL_CHANNEL(ch)  ((uint32_t)((ch - 1) << 2))  // 等价于 (ch-1)*4
+
+/* Exported typedef ----------------------------------------------------------*/
+/**
+ * @brief STM32 PWM控制器结构体
+ */
+struct stm32_pwm {
+    TIM_HandleTypeDef htim;     /**< STM32 HAL TIM句柄 */
+    uint32_t max_arr;           /**< ARR寄存器最大值 */
+    bool have_complementary_output; /**< 是否有互补输出 */
+    uint32_t clock;
+};
+
+/* Exported macro ------------------------------------------------------------*/
+/* Exported variable prototypes ----------------------------------------------*/
+/* Exported function prototypes ----------------------------------------------*/
+/**
+ * @brief 初始化TIM3 PWM并注册设备
+ * @return 成功返回0，失败返回负的错误码
+ */
+int stm32_pwm_tim3_init(void);
+
+/**
+ * @brief 初始化指定定时器的PWM
+ * @param tim_num 定时器编号(1,2,3,...)
+ * @return 成功返回0，失败返回负的错误码
+ */
+int stm32_pwm_init_timer(uint8_t tim_num);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
+#endif /* __STM32_PWM_H__ */
