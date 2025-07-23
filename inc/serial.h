@@ -24,7 +24,7 @@
 #include "kfifo.h"
 #include "my_list.h"
 
-#if (USING_RTOS == 1)
+#if USING_RTOS
     #include "FreeRTOS.h"
     #include "task.h"
     #include "semphr.h"
@@ -158,7 +158,7 @@ typedef struct serial{
     list_t node;                       ///< Node of serial list
     void *prv_data;                     ///< Private data
     
-#if (USING_RTOS == 1)
+#if USING_RTOS
     TaskHandle_t tx_task;               ///< Task handle of tx task
     SemaphoreHandle_t tx_sem;          ///< Semaphore for TX task synchronization
     SemaphoreHandle_t write_mutex;     ///< Mutex for protecting serial_write

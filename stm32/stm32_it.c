@@ -19,7 +19,7 @@
 #include "board.h"
 #include "sys_config.h"
 #include "stm32_it.h"
-#if (USING_RTOS == 1)
+#if USING_RTOS
     #include "FreeRTOS.h"
     #include "task.h"
 #endif // USING_RTOS
@@ -84,7 +84,7 @@ void DebugMon_Handler(void)
 /**
  * @brief This function handles System tick timer.
  */
-#if (USING_RTOS == 0)
+#if !USING_RTOS
 void SysTick_Handler(void)
 {
     HAL_IncTick();
