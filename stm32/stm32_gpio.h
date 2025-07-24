@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : xxx.h
+  * @file        : stm32_gpio.h
   * @author      : ZJY
   * @version     : V1.0
   * @data        : 20xx-xx-xx

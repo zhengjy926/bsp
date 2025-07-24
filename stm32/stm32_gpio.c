@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : xxxx.c
+  * @file        : gpio.c
   * @author      : ZJY
   * @version     : V1.0
   * @date        : 20xx-xx-xx
@@ -19,56 +19,180 @@
 #include "gpio.h"
 #include "string.h"
 /* Private typedef -----------------------------------------------------------*/
+
 /* Private define ------------------------------------------------------------*/
+
+/* Private macro -------------------------------------------------------------*/
 /*
  * Combine the port number (port) and the pin number (pin) into an 8-bit
  * unique identifier (pin_id), with the port number in the high 4 bits and
  * the pin number in the low 4 bits
  */
-#define PIN_ID(port, pin) (((((port) & 0xFu) << 4) | ((pin) & 0xFu)))
+#define PIN_ID(port, pin)           (((((port) & 0xFu) << 4) | ((pin) & 0xFu)))
 
 /* Get the port number from the pin_id */
-#define PIN_PORT(pin_id) ((uint8_t)(((pin_id) >> 4) & 0xFu))
+#define PIN_GET_PORT_IDX(pin_id)    ((uint8_t)(((pin_id) >> 4) & 0xFu))
+
 /* Get the pin number from the pin_id */
-#define PIN_NO(pin_id) ((uint8_t)((pin_id) & 0xFu))
+#define PIN_GET_PIN_NUM(pin_id)     ((uint8_t)((pin_id) & 0xFu))
 
-#define PIN_STPORT(pin_id) ((GPIO_TypeDef *)(GPIOA_BASE + (0x400u * PIN_PORT(pin_id))))
-#define PIN_STPIN(pin_id) ((uint16_t)(1u << PIN_NO(pin_id)))
+#define PIN_MASK(pin_id)            ((uint16_t)(1u << PIN_GET_PIN_NUM(pin_id)))
 
-#if defined(GPIOZ)
-#define __STM32_PORT_MAX 12u
-#elif defined(GPIOK)
-#define __STM32_PORT_MAX 11u
-#elif defined(GPIOJ)
-#define __STM32_PORT_MAX 10u
-#elif defined(GPIOI)
-#define __STM32_PORT_MAX 9u
-#elif defined(GPIOH)
-#define __STM32_PORT_MAX 8u
-#elif defined(GPIOG)
-#define __STM32_PORT_MAX 7u
-#elif defined(GPIOF)
-#define __STM32_PORT_MAX 6u
-#elif defined(GPIOE)
-#define __STM32_PORT_MAX 5u
-#elif defined(GPIOD)
-#define __STM32_PORT_MAX 4u
-#elif defined(GPIOC)
-#define __STM32_PORT_MAX 3u
-#elif defined(GPIOB)
-#define __STM32_PORT_MAX 2u
-#elif defined(GPIOA)
-#define __STM32_PORT_MAX 1u
-#else
-#define __STM32_PORT_MAX 0u
-#error Unsupported STM32 GPIO peripheral.
-#endif
-
-#define PIN_STPORT_MAX __STM32_PORT_MAX
-/* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+static GPIO_TypeDef * const gpio_ports[] = {
+  GPIOA
+#ifdef GPIOB
+, GPIOB
+#endif
+#ifdef GPIOC
+, GPIOC
+#endif
+#ifdef GPIOD
+, GPIOD
+#endif
+#ifdef GPIOE
+, GPIOE
+#endif
+#ifdef GPIOF
+, GPIOF
+#endif
+#ifdef GPIOG
+, GPIOG
+#endif
+#ifdef GPIOH
+, GPIOH
+#endif
+#ifdef GPIOI
+, GPIOI
+#endif
+#ifdef GPIOJ
+, GPIOJ
+#endif
+#ifdef GPIOK
+, GPIOK
+#endif
+#ifdef GPIOM
+, GPIOM
+#endif
+#ifdef GPION
+, GPION
+#endif
+#ifdef GPIOO
+, GPIOO
+#endif
+#ifdef GPIOP
+, GPIOP
+#endif
+#ifdef GPIOZ
+, GPIOZ
+#endif
+};
+
+/* Maximum number of ports */
+#define GPIO_MAX_PORTS_NUM      (sizeof(gpio_ports) / sizeof(gpio_ports[0]))
+
+/* Maximum number of pins */
+#define GPIO_MAX_PINS_NUM       ((GPIO_MAX_PORTS_NUM)*16U)
+
+
+static const struct pin_irq_map pin_irq_map[] =
+{
+#if defined(SOC_SERIES_STM32F0) || defined(SOC_SERIES_STM32L0) || defined(SOC_SERIES_STM32G0)
+    {GPIO_PIN_0, EXTI0_1_IRQn},
+    {GPIO_PIN_1, EXTI0_1_IRQn},
+    {GPIO_PIN_2, EXTI2_3_IRQn},
+    {GPIO_PIN_3, EXTI2_3_IRQn},
+    {GPIO_PIN_4, EXTI4_15_IRQn},
+    {GPIO_PIN_5, EXTI4_15_IRQn},
+    {GPIO_PIN_6, EXTI4_15_IRQn},
+    {GPIO_PIN_7, EXTI4_15_IRQn},
+    {GPIO_PIN_8, EXTI4_15_IRQn},
+    {GPIO_PIN_9, EXTI4_15_IRQn},
+    {GPIO_PIN_10, EXTI4_15_IRQn},
+    {GPIO_PIN_11, EXTI4_15_IRQn},
+    {GPIO_PIN_12, EXTI4_15_IRQn},
+    {GPIO_PIN_13, EXTI4_15_IRQn},
+    {GPIO_PIN_14, EXTI4_15_IRQn},
+    {GPIO_PIN_15, EXTI4_15_IRQn},
+#elif defined(SOC_SERIES_STM32MP1) || defined(SOC_SERIES_STM32L5) || defined(SOC_SERIES_STM32U5)
+    {GPIO_PIN_0, EXTI0_IRQn},
+    {GPIO_PIN_1, EXTI1_IRQn},
+    {GPIO_PIN_2, EXTI2_IRQn},
+    {GPIO_PIN_3, EXTI3_IRQn},
+    {GPIO_PIN_4, EXTI4_IRQn},
+    {GPIO_PIN_5, EXTI5_IRQn},
+    {GPIO_PIN_6, EXTI6_IRQn},
+    {GPIO_PIN_7, EXTI7_IRQn},
+    {GPIO_PIN_8, EXTI8_IRQn},
+    {GPIO_PIN_9, EXTI9_IRQn},
+    {GPIO_PIN_10, EXTI10_IRQn},
+    {GPIO_PIN_11, EXTI11_IRQn},
+    {GPIO_PIN_12, EXTI12_IRQn},
+    {GPIO_PIN_13, EXTI13_IRQn},
+    {GPIO_PIN_14, EXTI14_IRQn},
+    {GPIO_PIN_15, EXTI15_IRQn},
+#elif defined(SOC_SERIES_STM32F3)
+    {GPIO_PIN_0, EXTI0_IRQn},
+    {GPIO_PIN_1, EXTI1_IRQn},
+    {GPIO_PIN_2, EXTI2_TSC_IRQn},
+    {GPIO_PIN_3, EXTI3_IRQn},
+    {GPIO_PIN_4, EXTI4_IRQn},
+    {GPIO_PIN_5, EXTI9_5_IRQn},
+    {GPIO_PIN_6, EXTI9_5_IRQn},
+    {GPIO_PIN_7, EXTI9_5_IRQn},
+    {GPIO_PIN_8, EXTI9_5_IRQn},
+    {GPIO_PIN_9, EXTI9_5_IRQn},
+    {GPIO_PIN_10, EXTI15_10_IRQn},
+    {GPIO_PIN_11, EXTI15_10_IRQn},
+    {GPIO_PIN_12, EXTI15_10_IRQn},
+    {GPIO_PIN_13, EXTI15_10_IRQn},
+    {GPIO_PIN_14, EXTI15_10_IRQn},
+    {GPIO_PIN_15, EXTI15_10_IRQn},
+#else
+    {GPIO_PIN_0, EXTI0_IRQn},
+    {GPIO_PIN_1, EXTI1_IRQn},
+    {GPIO_PIN_2, EXTI2_IRQn},
+    {GPIO_PIN_3, EXTI3_IRQn},
+    {GPIO_PIN_4, EXTI4_IRQn},
+    {GPIO_PIN_5, EXTI9_5_IRQn},
+    {GPIO_PIN_6, EXTI9_5_IRQn},
+    {GPIO_PIN_7, EXTI9_5_IRQn},
+    {GPIO_PIN_8, EXTI9_5_IRQn},
+    {GPIO_PIN_9, EXTI9_5_IRQn},
+    {GPIO_PIN_10, EXTI15_10_IRQn},
+    {GPIO_PIN_11, EXTI15_10_IRQn},
+    {GPIO_PIN_12, EXTI15_10_IRQn},
+    {GPIO_PIN_13, EXTI15_10_IRQn},
+    {GPIO_PIN_14, EXTI15_10_IRQn},
+    {GPIO_PIN_15, EXTI15_10_IRQn},
+#endif
+};
+
+static struct pin_irq_hdr pin_irq_hdr_tab[] =
+{
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+    {-1, 0, NULL, NULL},
+};
+static uint32_t pin_irq_enable_mask = 0;
+
 /* Exported variables  -------------------------------------------------------*/
+
 /* Private function prototypes -----------------------------------------------*/
+
 /* Exported functions --------------------------------------------------------*/
 static int stm32_gpio_get(const char *name)
 {
@@ -99,66 +223,307 @@ static int stm32_gpio_get(const char *name)
     return pin_id;
 }
 
-static void stm32_gpio_mode(size_t pin_id, size_t mode, size_t pull_resistor)
+static void stm32_gpio_mode(size_t pin_id, PIN_MODE mode, PIN_PULL_RESISTOR pull_resistor)
 {
     GPIO_InitTypeDef GPIO_InitStruct;
 
-    if (PIN_PORT(pin_id) >= PIN_STPORT_MAX)
-    {
+    if (pin_id >= GPIO_MAX_PINS_NUM) { // If pin id is out-of-bounds
         return;
     }
 
     /* Configure GPIO_InitStructure */
-    GPIO_InitStruct.Pin = PIN_STPIN(pin_id);
+    GPIO_InitStruct.Pin = PIN_MASK(pin_id);
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
-    if (mode == PIN_MODE_OUTPUT_PP) {
+    if (mode == PIN_OUTPUT_PP) {
         GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    } else if (mode == PIN_MODE_OUTPUT_OD) {
+    } else if (mode == PIN_OUTPUT_OD) {
         GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-    } else if (mode == PIN_MODE_INPUT) {
+    } else {
         GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     }
     
-    if (pull_resistor == PIN_PULL_RESISTOR_UP) {
+    if (pull_resistor == PIN_PULL_UP) {
         GPIO_InitStruct.Pull = GPIO_PULLUP;
-    } else if (pull_resistor == PIN_PULL_RESISTOR_DOWN) {
+    } else if (pull_resistor == PIN_PULL_DOWN) {
         GPIO_InitStruct.Pull = GPIO_PULLDOWN;
     } else {
         GPIO_InitStruct.Pull = GPIO_NOPULL;
     }
+    
+    GPIO_TypeDef* port = gpio_ports[PIN_GET_PORT_IDX(pin_id)];
 
-    HAL_GPIO_Init(PIN_STPORT(pin_id), &GPIO_InitStruct);
+    HAL_GPIO_Init(port, &GPIO_InitStruct);
 }
 
 
-static void stm32_gpio_write(size_t pin, uint8_t value)
+static void stm32_gpio_write(size_t pin_id, uint8_t value)
 {
-    GPIO_TypeDef *gpio_port;
-    uint16_t gpio_pin;
-
-    if (PIN_PORT(pin) < PIN_STPORT_MAX)
-    {
-        gpio_port = PIN_STPORT(pin);
-        gpio_pin = PIN_STPIN(pin);
-        HAL_GPIO_WritePin(gpio_port, gpio_pin, (GPIO_PinState)value);
+    if (pin_id >= GPIO_MAX_PINS_NUM) { // If pin id is out-of-bounds
+        return;
+    }
+    
+    GPIO_TypeDef* port     = gpio_ports[PIN_GET_PORT_IDX(pin_id)];
+    uint16_t      pin_mask = PIN_MASK(pin_id);
+    
+    if(value) {
+        port->BSRR = pin_mask;
+    } else {
+        port->BSRR = (uint32_t)pin_mask << 16U;
     }
 }
 
-static uint8_t stm32_gpio_read(size_t pin)
+static uint8_t stm32_gpio_read(size_t pin_id)
 {
-    GPIO_TypeDef *gpio_port;
-    uint16_t gpio_pin;
-    int value = PIN_LOW;
-
-    if (PIN_PORT(pin) < PIN_STPORT_MAX)
-    {
-        gpio_port = PIN_STPORT(pin);
-        gpio_pin = PIN_STPIN(pin);
-        value = HAL_GPIO_ReadPin(gpio_port, gpio_pin);
+    uint8_t value = 0;
+    
+    if (pin_id >= GPIO_MAX_PINS_NUM) { // If pin id is out-of-bounds
+        return 0;
+    }
+    
+    GPIO_TypeDef* port     = gpio_ports[PIN_GET_PORT_IDX(pin_id)];
+    uint16_t      pin_mask = PIN_MASK(pin_id);
+    
+    if((port->IDR & pin_mask) != (uint32_t)GPIO_PIN_RESET) {
+        value = 1;
     }
     
     return value;
+}
+
+static inline int32_t bit2bitno(uint32_t bit)
+{
+    uint8_t i;
+    for (i = 0; i < 32; i++)
+    {
+        if ((0x01 << i) == bit)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static inline const struct pin_irq_map *get_pin_irq_map(uint32_t pinbit)
+{
+    int32_t mapindex = bit2bitno(pinbit);
+    if (mapindex < 0 || mapindex >= (sizeof(pin_irq_map) / sizeof(pin_irq_map[0])))
+    {
+        return NULL;
+    }
+    return &pin_irq_map[mapindex];
+};
+
+static int stm32_gpio_attach_irq(size_t pin_id, uint32_t mode, void (*hdr)(void *args), void *args)
+{
+    uint32_t level;
+    int32_t irqindex = -1;
+    
+    if (pin_id >= GPIO_MAX_PINS_NUM) { // If pin id is out-of-bounds
+        return -ENOSYS;
+    }
+
+    irqindex = bit2bitno(PIN_MASK(pin_id));
+    if (irqindex < 0 || irqindex >= (sizeof(pin_irq_map) / sizeof(pin_irq_map[0])))
+    {
+        return ENOSYS;
+    }
+
+    level = __get_BASEPRI();
+    __disable_irq();
+    
+    if (pin_irq_hdr_tab[irqindex].pin == pin_id &&
+        pin_irq_hdr_tab[irqindex].hdr == hdr &&
+        pin_irq_hdr_tab[irqindex].mode == mode &&
+        pin_irq_hdr_tab[irqindex].args == args)
+    {
+        __set_PRIMASK(level);
+        return 0;
+    }
+    if (pin_irq_hdr_tab[irqindex].pin != -1)
+    {
+        __set_PRIMASK(level);
+        return -EBUSY;
+    }
+    pin_irq_hdr_tab[irqindex].pin = pin_id;
+    pin_irq_hdr_tab[irqindex].hdr = hdr;
+    pin_irq_hdr_tab[irqindex].mode = mode;
+    pin_irq_hdr_tab[irqindex].args = args;
+    __set_PRIMASK(level);
+
+    return 0;
+}
+
+static int stm32_gpio_deattach_irq(size_t pin_id)
+{
+    uint32_t level;
+    int32_t irqindex = -1;
+
+    if (pin_id >= GPIO_MAX_PINS_NUM) { // If pin id is out-of-bounds
+        return -ENOSYS;
+    }
+
+    irqindex = bit2bitno(PIN_MASK(pin_id));
+    if (irqindex < 0 || irqindex >= (sizeof(pin_irq_map) / sizeof(pin_irq_map[0])))
+    {
+        return ENOSYS;
+    }
+
+    level = __get_BASEPRI();
+    __disable_irq();
+    if (pin_irq_hdr_tab[irqindex].pin == -1)
+    {
+        __set_PRIMASK(level);
+        return 0;
+    }
+    pin_irq_hdr_tab[irqindex].pin = -1;
+    pin_irq_hdr_tab[irqindex].hdr = NULL;
+    pin_irq_hdr_tab[irqindex].mode = 0;
+    pin_irq_hdr_tab[irqindex].args = NULL;
+    __set_PRIMASK(level);
+
+    return 0;
+}
+
+static int stm32_gpio_irq_enable(size_t pin_id, uint32_t enabled)
+{
+    const struct pin_irq_map *irqmap;
+    uint32_t level;
+    int32_t irqindex = -1;
+    GPIO_InitTypeDef GPIO_InitStruct;
+
+    if (pin_id >= GPIO_MAX_PINS_NUM) { // If pin id is out-of-bounds
+        return -ENOSYS;
+    }
+
+    if (enabled == PIN_IRQ_ENABLE)
+    {
+        irqindex = bit2bitno(PIN_MASK(pin_id));
+        if (irqindex < 0 || irqindex >= (sizeof(pin_irq_map) / sizeof(pin_irq_map[0])))
+        {
+            return -ENOSYS;
+        }
+
+        level = __get_BASEPRI();
+        __disable_irq();
+
+        if (pin_irq_hdr_tab[irqindex].pin == -1)
+        {
+            __set_PRIMASK(level);
+            return -ENOSYS;
+        }
+
+        irqmap = &pin_irq_map[irqindex];
+
+        /* Configure GPIO_InitStructure */
+        GPIO_InitStruct.Pin = PIN_MASK(pin_id);
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        switch (pin_irq_hdr_tab[irqindex].mode)
+        {
+            case PIN_IRQ_MODE_RISING:
+                GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+                GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+                break;
+            case PIN_IRQ_MODE_FALLING:
+                GPIO_InitStruct.Pull = GPIO_PULLUP;
+                GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+                break;
+            case PIN_IRQ_MODE_RISING_FALLING:
+                GPIO_InitStruct.Pull = GPIO_NOPULL;
+                GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+                break;
+            default:
+                break;
+        }
+        HAL_GPIO_Init(gpio_ports[PIN_GET_PORT_IDX(pin_id)], &GPIO_InitStruct);
+
+        HAL_NVIC_SetPriority(irqmap->irqno, 5, 0);
+        HAL_NVIC_EnableIRQ(irqmap->irqno);
+        pin_irq_enable_mask |= irqmap->pinbit;
+
+        __set_PRIMASK(level);
+    }
+    else if (enabled == PIN_IRQ_DISABLE)
+    {
+        irqmap = get_pin_irq_map(PIN_MASK(pin_id));
+        if (irqmap == NULL)
+        {
+            return -ENOSYS;
+        }
+
+        level = __get_BASEPRI();
+        __disable_irq();
+        HAL_GPIO_DeInit(gpio_ports[PIN_GET_PORT_IDX(pin_id)], PIN_MASK(pin_id));
+
+        pin_irq_enable_mask &= ~irqmap->pinbit;
+#if defined(SOC_SERIES_STM32F0) || defined(SOC_SERIES_STM32G0)
+        if ((irqmap->pinbit >= GPIO_PIN_0) && (irqmap->pinbit <= GPIO_PIN_1))
+        {
+            if (!(pin_irq_enable_mask & (GPIO_PIN_0 | GPIO_PIN_1)))
+            {
+                HAL_NVIC_DisableIRQ(irqmap->irqno);
+            }
+        }
+        else if ((irqmap->pinbit >= GPIO_PIN_2) && (irqmap->pinbit <= GPIO_PIN_3))
+        {
+            if (!(pin_irq_enable_mask & (GPIO_PIN_2 | GPIO_PIN_3)))
+            {
+                HAL_NVIC_DisableIRQ(irqmap->irqno);
+            }
+        }
+        else if ((irqmap->pinbit >= GPIO_PIN_4) && (irqmap->pinbit <= GPIO_PIN_15))
+        {
+            if (!(pin_irq_enable_mask & (GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9 |
+                                         GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15)))
+            {
+                HAL_NVIC_DisableIRQ(irqmap->irqno);
+            }
+        }
+        else
+        {
+            HAL_NVIC_DisableIRQ(irqmap->irqno);
+        }
+#else
+        if ((irqmap->pinbit >= GPIO_PIN_5) && (irqmap->pinbit <= GPIO_PIN_9))
+        {
+            if (!(pin_irq_enable_mask & (GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9)))
+            {
+                HAL_NVIC_DisableIRQ(irqmap->irqno);
+            }
+        }
+        else if ((irqmap->pinbit >= GPIO_PIN_10) && (irqmap->pinbit <= GPIO_PIN_15))
+        {
+            if (!(pin_irq_enable_mask & (GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15)))
+            {
+                HAL_NVIC_DisableIRQ(irqmap->irqno);
+            }
+        }
+        else
+        {
+            HAL_NVIC_DisableIRQ(irqmap->irqno);
+        }
+#endif
+        __set_PRIMASK(level);
+    }
+    else
+    {
+        return -ENOSYS;
+    }
+
+    return 0;
+}
+
+static inline void pin_irq_hdr(int irqno)
+{
+    if (pin_irq_hdr_tab[irqno].hdr)
+    {
+        pin_irq_hdr_tab[irqno].hdr(pin_irq_hdr_tab[irqno].args);
+    }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    pin_irq_hdr(bit2bitno(GPIO_Pin));
 }
 
 const static struct gpio_ops _stm32_pin_ops =
@@ -166,11 +531,55 @@ const static struct gpio_ops _stm32_pin_ops =
     stm32_gpio_mode,
     stm32_gpio_write,
     stm32_gpio_read,
-    NULL,
-    NULL,
-    NULL,
-    stm32_gpio_get,
+    stm32_gpio_attach_irq,
+    stm32_gpio_deattach_irq,
+    stm32_gpio_irq_enable,
+    stm32_gpio_get
 };
+
+void EXTI0_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
+}
+
+void EXTI1_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
+}
+
+void EXTI2_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
+}
+
+void EXTI3_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
+}
+
+void EXTI4_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
+}
+
+void EXTI9_5_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_5);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_7);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_8);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_9);
+}
+
+void EXTI15_10_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_10);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_11);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_12);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_15);
+}
 
 void stm32_gpio_init(void)
 {
