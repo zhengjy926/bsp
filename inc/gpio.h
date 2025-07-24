@@ -3,8 +3,8 @@
   * @file        : gpio.h
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 2024-09-26
-  * @brief       : 
+  * @date        : 2024-09-26
+  * @brief       : GPIO (General Purpose Input/Output) driver interface
   * @attention   : None
   ******************************************************************************
   * @history     :
@@ -43,37 +43,38 @@
 /* Includes ------------------------------------------------------------------*/
 #include "sys_def.h"
 /* Exported define -----------------------------------------------------------*/
-typedef enum {
-    PIN_INPUT,
-    PIN_OUTPUT_PP,
-    PIN_OUTPUT_OD
+/**
+ * @brief GPIO pin mode configurations
+ */
+ typedef enum {
+    PIN_INPUT,       /**< Configure pin as input */
+    PIN_OUTPUT_PP,   /**< Configure pin as push-pull output */
+    PIN_OUTPUT_OD    /**< Configure pin as open-drain output */
 } PIN_MODE;
 
 /**
- * @brief GPIO Pull Resistor
+ * @brief GPIO pull resistor configurations
  */
-typedef enum {
-    PIN_PULL_NONE,                   ///< None (default)
-    PIN_PULL_UP,                     ///< Pull-up
-    PIN_PULL_DOWN                    ///< Pull-down
+ typedef enum {
+    PIN_PULL_NONE,   /**< No pull-up and pull-down resistor */
+    PIN_PULL_UP,     /**< pull-up resistor */
+    PIN_PULL_DOWN    /**< pull-down resistor */
 } PIN_PULL_RESISTOR;
 
 #define PIN_IRQ_MODE_RISING             0x00
 #define PIN_IRQ_MODE_FALLING            0x01
 #define PIN_IRQ_MODE_RISING_FALLING     0x02
-#define PIN_IRQ_MODE_HIGH_LEVEL         0x03
-#define PIN_IRQ_MODE_LOW_LEVEL          0x04
-
-#define PIN_IRQ_DISABLE                 0x00
-#define PIN_IRQ_ENABLE                  0x01
 
 #define PIN_IRQ_PIN_NONE                -1
 /* Exported typedef ----------------------------------------------------------*/
+/**
+ * @brief GPIO interrupt handler structure
+ */
 struct pin_irq_hdr {
-    int16_t        pin;
-    uint16_t       mode;
-    void (*hdr)(void *args);
-    void             *args;
+    int16_t        pin;         /**< GPIO pin number */
+    uint16_t       mode;        /**< Interrupt trigger mode */
+    void (*hdr)(void *args);    /**< Interrupt handler function */
+    void             *args;     /**< Argument passed to the interrupt handler */
 };
 
 struct gpio_ops {

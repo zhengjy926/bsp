@@ -4,9 +4,9 @@
   * @file        : stm32_gpio.h
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 20xx-xx-xx
-  * @brief       : 
-  * @attattention: None
+  * @date        : 2024-09-26
+  * @brief       : STM32 GPIO driver header file
+  * @attention   : None
   ******************************************************************************
   * @history     :
   *         V1.0 : 1.xxx
@@ -25,15 +25,17 @@
 #include "board.h"
 #include "sys_def.h"
 /* Exported define -----------------------------------------------------------*/
-#define __STM32_PORT(port)  GPIO##port##_BASE
-
-#define GET_PIN(PORTx,PIN) (int)((16 * ( ((uint32_t)__STM32_PORT(PORTx) - (uint32_t)GPIOA_BASE)/(0x0400UL) )) + PIN)
 
 /* Exported typedef ----------------------------------------------------------*/
+
+/**
+ * @brief Pin interrupt map structure
+ * @note This structure maps pin bits to interrupt numbers
+ */
 struct pin_irq_map
 {
-    uint16_t pinbit;
-    IRQn_Type irqno;
+    uint16_t pinbit;     /**< Pin bit number */
+    IRQn_Type irqno;     /**< Interrupt number */
 };
 /* Exported macro ------------------------------------------------------------*/
 

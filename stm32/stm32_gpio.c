@@ -4,9 +4,9 @@
   * @file        : gpio.c
   * @author      : ZJY
   * @version     : V1.0
-  * @date        : 20xx-xx-xx
-  * @brief       : 
-  * @attattention: None
+  * @date        : 2024-09-26
+  * @brief       : STM32 GPIO driver implementation
+  * @attention   : None
   ******************************************************************************
   * @history     :
   *         V1.0 : 1.xxx
@@ -168,6 +168,8 @@ static const struct pin_irq_map pin_irq_map[] =
 #endif
 };
 
+#define GPIO_IRQ_MAP_MAX       (sizeof(pin_irq_map) / sizeof(pin_irq_map[0]))
+
 static struct pin_irq_hdr pin_irq_hdr_tab[] =
 {
     {-1, 0, NULL, NULL},
@@ -194,6 +196,11 @@ static uint32_t pin_irq_enable_mask = 0;
 /* Private function prototypes -----------------------------------------------*/
 
 /* Exported functions --------------------------------------------------------*/
+/**
+ * @brief Get pin ID from pin name string
+ * @param name Pin name string (e.g. "PA.0" for Port A Pin 0)
+ * @return Pin ID on success, negative error code on failure
+ */
 static int stm32_gpio_get(const char *name)
 {
     size_t pin_id, name_len = 0;
@@ -223,6 +230,13 @@ static int stm32_gpio_get(const char *name)
     return pin_id;
 }
 
+/**
+ * @brief Set GPIO pin mode and pull resistor
+ * @param pin_id Pin identifier
+ * @param mode Pin mode (INPUT/OUTPUT_PP/OUTPUT_OD)
+ * @param pull_resistor Pull resistor configuration
+ * @return None
+ */
 static void stm32_gpio_mode(size_t pin_id, PIN_MODE mode, PIN_PULL_RESISTOR pull_resistor)
 {
     GPIO_InitTypeDef GPIO_InitStruct;
@@ -256,7 +270,12 @@ static void stm32_gpio_mode(size_t pin_id, PIN_MODE mode, PIN_PULL_RESISTOR pull
     HAL_GPIO_Init(port, &GPIO_InitStruct);
 }
 
-
+/**
+ * @brief Write digital value to GPIO pin
+ * @param pin_id Pin identifier
+ * @param value Digital value to write (0 or 1)
+ * @return None
+ */
 static void stm32_gpio_write(size_t pin_id, uint8_t value)
 {
     if (pin_id >= GPIO_MAX_PINS_NUM) { // If pin id is out-of-bounds
@@ -273,6 +292,11 @@ static void stm32_gpio_write(size_t pin_id, uint8_t value)
     }
 }
 
+/**
+ * @brief Read digital value from GPIO pin
+ * @param pin_id Pin identifier
+ * @return Digital value read from the pin (0 or 1)
+ */
 static uint8_t stm32_gpio_read(size_t pin_id)
 {
     uint8_t value = 0;
@@ -291,29 +315,14 @@ static uint8_t stm32_gpio_read(size_t pin_id)
     return value;
 }
 
-static inline int32_t bit2bitno(uint32_t bit)
-{
-    uint8_t i;
-    for (i = 0; i < 32; i++)
-    {
-        if ((0x01 << i) == bit)
-        {
-            return i;
-        }
-    }
-    return -1;
-}
-
-static inline const struct pin_irq_map *get_pin_irq_map(uint32_t pinbit)
-{
-    int32_t mapindex = bit2bitno(pinbit);
-    if (mapindex < 0 || mapindex >= (sizeof(pin_irq_map) / sizeof(pin_irq_map[0])))
-    {
-        return NULL;
-    }
-    return &pin_irq_map[mapindex];
-};
-
+/**
+ * @brief Attach interrupt handler to GPIO pin
+ * @param pin_id Pin identifier
+ * @param mode Interrupt trigger mode (RISING/FALLING/RISING_FALLING)
+ * @param hdr Interrupt handler function
+ * @param args Argument passed to the interrupt handler
+ * @return 0 on success, -ENOSYS if operation is not supported
+ */
 static int stm32_gpio_attach_irq(size_t pin_id, uint32_t mode, void (*hdr)(void *args), void *args)
 {
     uint32_t level;
@@ -323,11 +332,7 @@ static int stm32_gpio_attach_irq(size_t pin_id, uint32_t mode, void (*hdr)(void 
         return -ENOSYS;
     }
 
-    irqindex = bit2bitno(PIN_MASK(pin_id));
-    if (irqindex < 0 || irqindex >= (sizeof(pin_irq_map) / sizeof(pin_irq_map[0])))
-    {
-        return ENOSYS;
-    }
+    irqindex = PIN_GET_PIN_NUM(pin_id);
 
     level = __get_BASEPRI();
     __disable_irq();
@@ -354,6 +359,11 @@ static int stm32_gpio_attach_irq(size_t pin_id, uint32_t mode, void (*hdr)(void 
     return 0;
 }
 
+/**
+ * @brief Detach interrupt handler from GPIO pin
+ * @param pin_id Pin identifier
+ * @return 0 on success, -ENOSYS if operation is not supported
+ */
 static int stm32_gpio_deattach_irq(size_t pin_id)
 {
     uint32_t level;
@@ -363,11 +373,7 @@ static int stm32_gpio_deattach_irq(size_t pin_id)
         return -ENOSYS;
     }
 
-    irqindex = bit2bitno(PIN_MASK(pin_id));
-    if (irqindex < 0 || irqindex >= (sizeof(pin_irq_map) / sizeof(pin_irq_map[0])))
-    {
-        return ENOSYS;
-    }
+    irqindex = PIN_GET_PIN_NUM(pin_id);
 
     level = __get_BASEPRI();
     __disable_irq();
@@ -385,6 +391,12 @@ static int stm32_gpio_deattach_irq(size_t pin_id)
     return 0;
 }
 
+/**
+ * @brief Enable or disable GPIO interrupt
+ * @param pin_id Pin identifier
+ * @param enabled 1 to enable, 0 to disable
+ * @return 0 on success, -ENOSYS if operation is not supported
+ */
 static int stm32_gpio_irq_enable(size_t pin_id, uint32_t enabled)
 {
     const struct pin_irq_map *irqmap;
@@ -396,14 +408,8 @@ static int stm32_gpio_irq_enable(size_t pin_id, uint32_t enabled)
         return -ENOSYS;
     }
 
-    if (enabled == PIN_IRQ_ENABLE)
-    {
-        irqindex = bit2bitno(PIN_MASK(pin_id));
-        if (irqindex < 0 || irqindex >= (sizeof(pin_irq_map) / sizeof(pin_irq_map[0])))
-        {
-            return -ENOSYS;
-        }
-
+    if (enabled) {
+        irqindex = PIN_GET_PIN_NUM(pin_id);
         level = __get_BASEPRI();
         __disable_irq();
 
@@ -418,8 +424,7 @@ static int stm32_gpio_irq_enable(size_t pin_id, uint32_t enabled)
         /* Configure GPIO_InitStructure */
         GPIO_InitStruct.Pin = PIN_MASK(pin_id);
         GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        switch (pin_irq_hdr_tab[irqindex].mode)
-        {
+        switch (pin_irq_hdr_tab[irqindex].mode) {
             case PIN_IRQ_MODE_RISING:
                 GPIO_InitStruct.Pull = GPIO_PULLDOWN;
                 GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
@@ -443,9 +448,9 @@ static int stm32_gpio_irq_enable(size_t pin_id, uint32_t enabled)
 
         __set_PRIMASK(level);
     }
-    else if (enabled == PIN_IRQ_DISABLE)
+    else
     {
-        irqmap = get_pin_irq_map(PIN_MASK(pin_id));
+        irqmap = &pin_irq_map[irqindex];
         if (irqmap == NULL)
         {
             return -ENOSYS;
@@ -505,25 +510,8 @@ static int stm32_gpio_irq_enable(size_t pin_id, uint32_t enabled)
 #endif
         __set_PRIMASK(level);
     }
-    else
-    {
-        return -ENOSYS;
-    }
 
     return 0;
-}
-
-static inline void pin_irq_hdr(int irqno)
-{
-    if (pin_irq_hdr_tab[irqno].hdr)
-    {
-        pin_irq_hdr_tab[irqno].hdr(pin_irq_hdr_tab[irqno].args);
-    }
-}
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    pin_irq_hdr(bit2bitno(GPIO_Pin));
 }
 
 const static struct gpio_ops _stm32_pin_ops =
@@ -537,31 +525,71 @@ const static struct gpio_ops _stm32_pin_ops =
     stm32_gpio_get
 };
 
+/**
+ * @brief GPIO external interrupt callback handler
+ * @param GPIO_Pin Pin number that triggered the interrupt
+ * @return None
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    uint32_t pin_pos;
+
+    pin_pos = __CLZ(__RBIT(GPIO_Pin));
+    
+    if (pin_irq_hdr_tab[pin_pos].hdr != NULL) {
+        pin_irq_hdr_tab[pin_pos].hdr(pin_irq_hdr_tab[pin_pos].args);
+    }
+}
+
+/**
+ * @brief EXTI0 interrupt handler
+ * @return None
+ */
 void EXTI0_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
 }
 
+/**
+ * @brief EXTI1 interrupt handler
+ * @return None
+ */
 void EXTI1_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
 }
 
+/**
+ * @brief EXTI2 interrupt handler
+ * @return None
+ */
 void EXTI2_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
 }
 
+/**
+ * @brief EXTI3 interrupt handler
+ * @return None
+ */
 void EXTI3_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
 }
 
+/**
+ * @brief EXTI4 interrupt handler
+ * @return None
+ */
 void EXTI4_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
 }
 
+/**
+ * @brief EXTI9_5 interrupt handler
+ * @return None
+ */
 void EXTI9_5_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_5);
@@ -571,6 +599,10 @@ void EXTI9_5_IRQHandler(void)
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_9);
 }
 
+/**
+ * @brief EXTI15_10 interrupt handler
+ * @return None
+ */
 void EXTI15_10_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_10);
@@ -581,6 +613,10 @@ void EXTI15_10_IRQHandler(void)
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_15);
 }
 
+/**
+ * @brief Initialize GPIO
+ * @return None
+ */
 void stm32_gpio_init(void)
 {
 #if defined(__HAL_RCC_GPIOA_CLK_ENABLE)
