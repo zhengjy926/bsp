@@ -28,15 +28,6 @@
 
 /* Exported typedef ----------------------------------------------------------*/
 
-/**
- * @brief Pin interrupt map structure
- * @note This structure maps pin bits to interrupt numbers
- */
-struct pin_irq_map
-{
-    uint16_t pinbit;     /**< Pin bit number */
-    IRQn_Type irqno;     /**< Interrupt number */
-};
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported variable prototypes ----------------------------------------------*/

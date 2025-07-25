@@ -42,48 +42,53 @@
 */
 /* Includes ------------------------------------------------------------------*/
 #include "sys_def.h"
+
 /* Exported define -----------------------------------------------------------*/
+#define PIN_IRQ_PIN_NONE                -1
+
+/* Exported typedef ----------------------------------------------------------*/
 /**
  * @brief GPIO pin mode configurations
  */
- typedef enum {
-    PIN_INPUT,       /**< Configure pin as input */
-    PIN_OUTPUT_PP,   /**< Configure pin as push-pull output */
-    PIN_OUTPUT_OD    /**< Configure pin as open-drain output */
-} PIN_MODE;
+typedef enum {
+    PIN_INPUT,                  /**< Configure pin as input */
+    PIN_OUTPUT_PP,              /**< Configure pin as push-pull output */
+    PIN_OUTPUT_OD               /**< Configure pin as open-drain output */
+} pin_mode_t;
 
 /**
  * @brief GPIO pull resistor configurations
  */
- typedef enum {
-    PIN_PULL_NONE,   /**< No pull-up and pull-down resistor */
-    PIN_PULL_UP,     /**< pull-up resistor */
-    PIN_PULL_DOWN    /**< pull-down resistor */
-} PIN_PULL_RESISTOR;
+typedef enum {
+    PIN_PULL_NONE,              /**< No pull-up and pull-down resistor */
+    PIN_PULL_UP,                /**< pull-up resistor */
+    PIN_PULL_DOWN               /**< pull-down resistor */
+} pin_pull_t;
 
-#define PIN_IRQ_MODE_RISING             0x00
-#define PIN_IRQ_MODE_FALLING            0x01
-#define PIN_IRQ_MODE_RISING_FALLING     0x02
 
-#define PIN_IRQ_PIN_NONE                -1
-/* Exported typedef ----------------------------------------------------------*/
+typedef enum {
+    PIN_EVENT_RISING_EDGE,    /**< Rising-edge */
+    PIN_EVENT_FALLING_EDGE,   /**< Falling-edge */
+    PIN_EVENT_EITHER_EDGE     /**< Either edge (rising and falling) */
+} pin_event_t;
+
 /**
  * @brief GPIO interrupt handler structure
  */
 struct pin_irq_hdr {
-    int16_t        pin;         /**< GPIO pin number */
-    uint16_t       mode;        /**< Interrupt trigger mode */
-    void (*hdr)(void *args);    /**< Interrupt handler function */
-    void             *args;     /**< Argument passed to the interrupt handler */
+    int16_t         pin;         /**< GPIO pin number */
+    pin_event_t     event;       /**< Interrupt trigger event */
+    void (*hdr)(void *args);     /**< Interrupt handler function */
+    void             *args;      /**< Argument passed to the interrupt handler */
 };
 
 struct gpio_ops {
-    void    (*set_mode)     (size_t pin_id, PIN_MODE mode, PIN_PULL_RESISTOR pull_resistor);
-    void    (*write)        (size_t pin_id, uint8_t value);
-    uint8_t (*read)         (size_t pin_id);
-    int     (*attach_irq)   (size_t pin_id, uint32_t mode, void (*hdr)(void *args), void *args);
-    int     (*detach_irq)   (size_t pin_id);
-    int     (*irq_enable)   (size_t pin_id, uint32_t enabled);
+    void    (*set_mode)     (uint32_t pin_id, pin_mode_t mode, pin_pull_t pull_resistor);
+    void    (*write)        (uint32_t pin_id, uint8_t value);
+    uint8_t (*read)         (uint32_t pin_id);
+    int     (*attach_irq)   (uint32_t pin_id, pin_event_t event, void (*hdr)(void *args), void *args);
+    int     (*detach_irq)   (uint32_t pin_id);
+    int     (*irq_enable)   (uint32_t pin_id, uint32_t enabled);
     int     (*get)          (const char *name);
 };
 
@@ -92,15 +97,14 @@ struct gpio_ops {
 /* Exported variable prototypes ----------------------------------------------*/
 
 /* Exported function prototypes ----------------------------------------------*/
-int     gpio_get(const char *name);
-void    gpio_set_mode(size_t pin_id, PIN_MODE mode, PIN_PULL_RESISTOR pull_resistor);
-void    gpio_write(size_t pin_id, uint8_t value);
-uint8_t gpio_read(size_t pin_id);
-int     gpio_attach_irq(size_t pin_id, uint32_t mode, void (*hdr)(void *args), void *args);
-int     gpio_detach_irq(size_t pin_id);
-int     gpio_irq_enable(size_t pin_id, uint32_t enabled);
-
-int     gpio_register(const struct gpio_ops *ops);
+int     gpio_get        (const char *name);
+void    gpio_set_mode   (uint32_t pin_id, pin_mode_t mode, pin_pull_t pull_resistor);
+void    gpio_write      (uint32_t pin_id, uint8_t value);
+uint8_t gpio_read       (uint32_t pin_id);
+int     gpio_attach_irq (uint32_t pin_id, pin_event_t event, void (*hdr)(void *args), void *args);
+int     gpio_detach_irq (uint32_t pin_id);
+int     gpio_irq_enable (uint32_t pin_id, uint32_t enabled);
+int     gpio_register   (const struct gpio_ops *ops);
 
 #ifdef __cplusplus
 }
