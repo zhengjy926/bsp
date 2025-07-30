@@ -16,9 +16,10 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
+#include "stm32_it.h"
 #include "board.h"
 #include "sys_config.h"
-#include "stm32_it.h"
+
 #if USING_RTOS
     #include "FreeRTOS.h"
     #include "task.h"

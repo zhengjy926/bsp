@@ -372,6 +372,7 @@ static int stm32_gpio_deattach_irq(uint32_t pin_id)
         __set_PRIMASK(level);
         return 0;
     }
+    /* Reset to the initial state. */
     pin_irq_hdr_tab[pin_index].pin = -1;
     pin_irq_hdr_tab[pin_index].hdr = NULL;
     pin_irq_hdr_tab[pin_index].event = 0;
@@ -406,6 +407,7 @@ static int stm32_gpio_irq_enable(uint32_t pin_id, uint32_t enabled)
 
         if (pin_irq_hdr_tab[pin_index].pin == -1)
         {
+            /* This pin has not yet been attached with an interrupt handling function. */
             __set_PRIMASK(level);
             return -ENOSYS;
         }
@@ -446,7 +448,7 @@ static int stm32_gpio_irq_enable(uint32_t pin_id, uint32_t enabled)
         pin_irq_enable_mask &= ~pin_mask;
         
         /* 
-         * Since multiple pins may share the same NVIC interrupt entry, 
+         * Since multiple pins may share the same NVIC interrupt entry(eg.EXTI15_10_IRQn), 
          * it is necessary to first determine whether other pins are also using
          * this interrupt before disabling the interrupt of the specific pin.
          */
