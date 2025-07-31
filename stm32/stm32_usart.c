@@ -15,10 +15,10 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32_usart.h"
-#include "stm32_dma.h"
 #include "usart_config.h"
-#include "board.h"
+#include "stm32_dma.h"
 #include "serial.h"
+
 #include <stdio.h>
 //#include "SEGGER_SYSVIEW_FreeRTOS.h"
 

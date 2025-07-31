@@ -15,7 +15,16 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32_clk.h"
-#include "board.h"
+
+#if defined(SOC_SERIES_STM32F1)
+    #include "stm32f1xx.h"
+#elif defined(SOC_SERIES_STM32F4)
+    #include "stm32f4xx.h"
+#elif defined(SOC_SERIES_STM32G4)
+    #include "stm32g4xx.h"
+#else
+#error "Please select first the soc series used in your application!"    
+#endif
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
@@ -33,7 +42,7 @@
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void)
+int stm32_clk_init(void)
 {
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
     RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
@@ -60,14 +69,14 @@ void SystemClock_Config(void)
     RCC_OscInitStruct.PLL.PLLQ = 7;
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
     {
-//        Error_Handler();
+        return -ERROR;
     }
     
     /** Activate the Over-Drive mode
     */
     if (HAL_PWREx_EnableOverDrive() != HAL_OK)
     {
-//        Error_Handler();
+        return -ERROR;
     }
 
     /** Initializes the CPU, AHB and APB buses clocks
@@ -81,16 +90,18 @@ void SystemClock_Config(void)
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
     {
-//        Error_Handler();
+        return -ERROR;
     }
 #elif defined(STM32G474xx)
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
     {
-        Error_Handler();
+        return -ERROR;
     }
 #endif
+    
+    return 0;
 }
 
 /* Private functions ---------------------------------------------------------*/

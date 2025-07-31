@@ -21,6 +21,7 @@
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
+#include "sys_def.h"
 
 /* Exported define -----------------------------------------------------------*/
 
@@ -31,7 +32,7 @@
 /* Exported variable prototypes ----------------------------------------------*/
 
 /* Exported function prototypes ----------------------------------------------*/
-void SystemClock_Config(void);
+int stm32_clk_init(void);
 
 #ifdef __cplusplus
 }
