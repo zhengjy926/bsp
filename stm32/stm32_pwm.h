@@ -6,7 +6,7 @@
   * @version     : V1.0
   * @data        : 2025-05-28
   * @brief       : STM32 PWM驱动头文件
-  * @attattention: None
+  * @attention   : None
   ******************************************************************************
   * @history     :
   *         V1.0 : 1.add pwm driver
@@ -22,8 +22,7 @@
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx_hal.h"
-#include "pwm.h"
+#include "sys_def.h"
 
 /* Exported define -----------------------------------------------------------*/
 /**
@@ -32,15 +31,6 @@
 #define TIM_CH_TO_HAL_CHANNEL(ch)  ((uint32_t)((ch - 1) << 2))  // 等价于 (ch-1)*4
 
 /* Exported typedef ----------------------------------------------------------*/
-/**
- * @brief STM32 PWM控制器结构体
- */
-struct stm32_pwm {
-    TIM_HandleTypeDef htim;     /**< STM32 HAL TIM句柄 */
-    uint32_t max_arr;           /**< ARR寄存器最大值 */
-    bool have_complementary_output; /**< 是否有互补输出 */
-    uint32_t clock;
-};
 
 /* Exported macro ------------------------------------------------------------*/
 /* Exported variable prototypes ----------------------------------------------*/

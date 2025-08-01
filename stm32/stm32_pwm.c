@@ -6,7 +6,7 @@
   * @version     : V1.0
   * @data        : 2025-05-28
   * @brief       : STM32 PWM驱动实现
-  * @attattention: None
+  * @attention   : None
   ******************************************************************************
   * @history     :
   *         V1.0 : 1.add pwm driver
@@ -19,7 +19,27 @@
 #include "pwm.h"
 #include "board.h"
 #include "mymath.h"
+
+#if defined(SOC_SERIES_STM32F1)
+    #include "stm32f1xx.h"
+#elif defined(SOC_SERIES_STM32F4)
+    #include "stm32f4xx.h"
+#elif defined(SOC_SERIES_STM32G4)
+    #include "stm32g4xx.h"
+#else
+#error "Please select first the soc series used in your application!"    
+#endif
 /* Private typedef -----------------------------------------------------------*/
+/**
+ * @brief STM32 PWM控制器结构体
+ */
+struct stm32_pwm {
+    TIM_HandleTypeDef htim;         /**< STM32 HAL TIM句柄 */
+    uint32_t max_arr;               /**< ARR寄存器最大值 */
+    bool have_complementary_output; /**< 是否有互补输出 */
+    uint32_t clock;
+};
+
 /* Private define ------------------------------------------------------------*/
 #define MAX_BREAKINPUT 2
 
@@ -139,7 +159,7 @@ static int stm32_pwm_set_polarity(struct stm32_pwm *priv, unsigned int ch,
  * @param pwm PWM设备
  * @return 成功返回0，失败返回负的错误码
  */
-static int stm32_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
+static int stm32_pwm_enable(struct pwm_controller *chip, struct pwm_device *pwm)
 {
     struct stm32_pwm *priv = (struct stm32_pwm*)chip->hw_data;
     HAL_StatusTypeDef hal_ret;
@@ -159,7 +179,7 @@ static int stm32_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
  * @param pwm PWM设备
  * @return 成功返回0，失败返回负的错误码
  */
-static int stm32_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
+static int stm32_pwm_disable(struct pwm_controller *chip, struct pwm_device *pwm)
 {
     struct stm32_pwm *priv = (struct stm32_pwm*)chip->hw_data;
     HAL_StatusTypeDef hal_ret;
@@ -180,7 +200,7 @@ static int stm32_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
  * @param state 要设置的状态
  * @return 成功返回0，失败返回负的错误码
  */
-static int stm32_pwm_set(struct pwm_chip *chip, struct pwm_device *pwm,
+static int stm32_pwm_set(struct pwm_controller *chip, struct pwm_device *pwm,
                            const struct pwm_state *state)
 {
     int ret;
@@ -355,7 +375,7 @@ static struct stm32_pwm __stm32_pwm[] = {
 };
 
 /* stm32 pwm 控制器定义 */
-static struct pwm_chip pwm_chip[] = {
+static struct pwm_controller pwm_controller[] = {
     {
         .ops = &stm32_pwm_ops,
         .id = 3,
@@ -371,7 +391,7 @@ static struct pwm_device pwm_dev[] = {
     {
         .name = "tim3_ch3",
         .channel = 3,
-        .chip = &pwm_chip[0],
+        .chip = &pwm_controller[0],
         .state = {
             .period = 500,
             .duty_cycle = 250,
@@ -383,7 +403,7 @@ static struct pwm_device pwm_dev[] = {
     {
         .name = "tim3_ch4",
         .channel = 4,
-        .chip = &pwm_chip[0],
+        .chip = &pwm_controller[0],
         .state = {
             .period = 500,
             .duty_cycle = 250,
