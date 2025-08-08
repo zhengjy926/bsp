@@ -5,7 +5,7 @@
   * @version     : V1.0
   * @data        : 20xx-xx-xx
   * @brief       : 
-  * @attattention: None
+  * @attention   : None
   ******************************************************************************
   * @history     :
   *         V1.0 : 1.xxx
