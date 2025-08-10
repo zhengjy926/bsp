@@ -35,10 +35,10 @@
 #endif
 
 /* Exported define -----------------------------------------------------------*/
-#if defined(STM32F429xx)
+#if defined(SOC_SERIES_STM32F4)
     #define DMA_INSTANCE_TYPE   DMA_Stream_TypeDef
-#elif defined(STM32G474xx)
-    #define DMA_INSTANCE_TYPE   DMA_Channel_TypeDef
+#else
+    #define DMA_INSTANCE_TYPE   DMA_Channel_TypeDef   
 #endif
 
 struct dma_config {

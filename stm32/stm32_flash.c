@@ -14,19 +14,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32_flash.h"
 #include "mtd_core.h"
-
-#if defined(SOC_SERIES_STM32F1)
-    #include "stm32f1xx.h"
-#elif defined(SOC_SERIES_STM32F4)
-    #include "stm32f4xx.h"
-#elif defined(SOC_SERIES_STM32G4)
-    #include "stm32g4xx.h"
-#else
-#error "Please select first the soc series used in your application!"
-#endif
-
-#include "board_config.h"
+#include "board.h"
 #include <string.h>
+
+#define  LOG_TAG             "stm32_flash"
+#define  LOG_LVL             4
+#include "log.h"
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -43,13 +36,12 @@
     #error "Please define the STM32_FLASH_END_ADDR!"
 #endif
 
-#define FLASH_ERASE_SIZE                    (128 * 1024)
 /* Exported variables  -------------------------------------------------------*/
 
 /* Private function prototypes -----------------------------------------------*/
 
 /* Exported functions --------------------------------------------------------*/
-#if defined(STM32F1xx)
+#if defined(SOC_SERIES_STM32F1)
 /**
  * @brief  (STM32F1) 获取给定地址所在的页。
  */
@@ -84,24 +76,25 @@ static uint32_t GetSector(uint32_t Address)
 }
 #endif
 
-
-int stm32_flash_erase(struct mtd_info *mtd, uint64_t addr, size_t len, uint64_t *fail_addr)
+int stm32_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
     FLASH_EraseInitTypeDef erase_config;
     uint32_t PageError = 0;
     HAL_StatusTypeDef status = HAL_ERROR;
-    uint32_t start_addr = addr + STM32_FLASH_START_ADDR;
-    uint32_t end_addr = addr + STM32_FLASH_START_ADDR + len;
+    uint32_t offs = (uint32_t)instr->addr;
+    uint32_t len = (uint32_t)instr->len;
+    uint32_t start_addr = (uint32_t)(STM32_FLASH_START_ADDR + offs);
+    uint32_t end_addr = (uint32_t)(STM32_FLASH_START_ADDR + offs + len - 1);
 
     /* 解锁Flash */
     HAL_FLASH_Unlock();
 
     /* 根据芯片系列选择擦除方式 */
-#if defined(STM32F1xx) // --------------- STM32F1系列使用页擦除 ----------------
+#if defined(SOC_SERIES_STM32F1)
     erase_config.TypeErase = FLASH_TYPEERASE_PAGES;
     erase_config.PageAddress = start_addr;
     erase_config.NbPages = (end_addr - start_addr) / FLASH_PAGE_SIZE + 1;
-#else // --------------- STM32F4/G4/L4/H7等系列使用扇区擦除 ----------------
+#else
     erase_config.TypeErase = FLASH_TYPEERASE_SECTORS;
     erase_config.Sector = GetSector(start_addr);
     erase_config.NbSectors = GetSector(end_addr) - GetSector(start_addr) + 1;
@@ -113,20 +106,20 @@ int stm32_flash_erase(struct mtd_info *mtd, uint64_t addr, size_t len, uint64_t 
     
     /* 加锁Flash */
     HAL_FLASH_Lock();
-    
     return status;
 }
 
-int stm32_flash_read(struct mtd_info *mtd, uint64_t from, size_t len, uint8_t *buf)
+int stm32_flash_read(struct mtd_info *mtd, uint64_t from, size_t len, size_t *retlen, uint8_t *buf)
 {
-    uint32_t start_addr = from + STM32_FLASH_START_ADDR;
+    uint32_t start_addr = (uint32_t)(from + STM32_FLASH_START_ADDR);
     
     memcpy(buf, (const void*)start_addr, len);
     
+    *retlen = len;
     return len;
 }
 
-int stm32_flash_write(struct mtd_info *mtd, uint64_t to, size_t len, const uint8_t *buf)
+int stm32_flash_write(struct mtd_info *mtd, uint64_t to, size_t len, size_t *retlen, const uint8_t *buf)
 {
     int ret = 0;
     uint32_t start_addr = to + STM32_FLASH_START_ADDR;
@@ -144,7 +137,7 @@ int stm32_flash_write(struct mtd_info *mtd, uint64_t to, size_t len, const uint8
         memcpy(&data_to_write, buf + i, (len - i) >= 4 ? 4 : (len - i));
         
         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, start_addr + i, data_to_write) != HAL_OK) {
-            // LOG_E();
+            LOG_E("HAL_FLASH_Program failed at addr=0x%08x", start_addr + i);
             ret = -1;
             break; // 如果发生错误，则停止写入
         }
@@ -158,13 +151,17 @@ int stm32_flash_write(struct mtd_info *mtd, uint64_t to, size_t len, const uint8
 struct mtd_info stm32_flash_info = {
     .name = "stm32_flash",
     .flags = MTD_WRITEABLE,
-    .size = STM32_FLASH_END_ADDR - STM32_FLASH_START_ADDR,
-    .erasesize = FLASH_ERASE_SIZE,
+    .size = (uint64_t)(STM32_FLASH_END_ADDR - STM32_FLASH_START_ADDR),
+#if defined(SOC_SERIES_STM32F1)
+    .erasesize = FLASH_PAGE_SIZE,
+#else
+    .erasesize = STM32_FLASH_ERASE_SIZE,
+#endif
     .writesize = 1,
     .writebufsize = 4,
     ._read = stm32_flash_read,
     ._write = stm32_flash_write,
-    ._erase = stm32_flash_erase
+    ._erase = stm32_flash_erase,
 };
 /* Private functions ---------------------------------------------------------*/
 

@@ -19,17 +19,15 @@
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
+#include "sys_def.h"
 #include "my_list.h"
 
 /* Exported define -----------------------------------------------------------*/
-#define MTD_FAIL_ADDR_UNKNOWN               -1
+#define MTD_FAIL_ADDR_UNKNOWN               -1ULL
 
-#define MTD_WRITEABLE		0x400	/* Device is writeable */
-#define MTD_BIT_WRITEABLE	0x800	/* Single bits can be flipped */
-#define MTD_NO_ERASE		0x1000	/* No erase necessary */
+#define MTD_WRITEABLE		                0x400	/* Device is writeable */
+#define MTD_BIT_WRITEABLE	                0x800	/* Single bits can be flipped */
+#define MTD_NO_ERASE		                0x1000	/* No erase necessary */
 
 /* Exported typedef ----------------------------------------------------------*/
 struct mtd_info;

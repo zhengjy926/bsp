@@ -1,17 +1,14 @@
 /**
   ******************************************************************************
-  * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : xxx.h
+  * @file        : watchdog.h
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 20xx-xx-xx
+  * @date        : 20xx-xx-xx
   * @brief       : 
-  * @attattention: None
+  * @attention   : None
   ******************************************************************************
   * @history     :
   *         V1.0 : 1.xxx
-  *
-  *
   ******************************************************************************
   */
 #ifndef __WATCHDOG_H__
@@ -22,7 +19,8 @@
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include "device.h"
+#include "sys_def.h"
+
 /* Exported define -----------------------------------------------------------*/
 #define DEVICE_CTRL_WDT_GET_TIMEOUT    ((29 * 0x100) + 1) /* get timeout(in seconds) */
 #define DEVICE_CTRL_WDT_SET_TIMEOUT    ((29 * 0x100) + 2) /* set timeout(in seconds) */
@@ -42,7 +40,6 @@ struct watchdog_ops
 
 struct watchdog_device
 {
-    struct device parent;
     const struct watchdog_ops *ops;
 };
 /* Exported macro ------------------------------------------------------------*/

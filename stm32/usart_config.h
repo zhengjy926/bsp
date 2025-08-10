@@ -35,17 +35,17 @@
     #define BSP_UART1_RX_USING_DMA
     #define BSP_UART1_TX_USING_DMA
 
-    #define BSP_USING_UART2
-    #define BSP_UART2_RX_USING_DMA
-    #define BSP_UART2_TX_USING_DMA
+//    #define BSP_USING_UART2
+//    #define BSP_UART2_RX_USING_DMA
+//    #define BSP_UART2_TX_USING_DMA
 
     #define BSP_USING_UART3
     #define BSP_UART3_RX_USING_DMA
     #define BSP_UART3_TX_USING_DMA
 
-    #define BSP_USING_UART4
-    #define BSP_UART4_RX_USING_DMA
-    #define BSP_UART4_TX_USING_DMA
+//    #define BSP_USING_UART4
+//    #define BSP_UART4_RX_USING_DMA
+//    #define BSP_UART4_TX_USING_DMA
 
     // #define BSP_USING_UART5
     // #define BSP_UART5_RX_USING_DMA
@@ -67,14 +67,12 @@
             .Instance = USART1,                                         \
             .irq_type = USART1_IRQn,                                    \
             .rx_dma   = {                                               \
-                .Instance = DMA2_Stream2,                               \
-                .channel  = DMA_CHANNEL_4,                              \
-                .dma_irq  = DMA2_Stream2_IRQn                           \
+                .Instance = DMA1_Channel5,                               \
+                .dma_irq  = DMA1_Channel5_IRQn \
             },                                                          \
             .tx_dma   = {                                               \
-                .Instance = DMA2_Stream7,                               \
-                .channel  = DMA_CHANNEL_4,                              \
-                .dma_irq  = DMA2_Stream7_IRQn                           \
+                .Instance = DMA1_Channel4, \
+                .dma_irq  = DMA1_Channel4_IRQn \
             },                                                          \
             .using_rx_dma = 1,                                          \
             .using_tx_dma = 1,                                          \
@@ -84,8 +82,8 @@
     #define UART1_TX_BUF_SIZE           (1024)
     #define UART1_RX_TEMP_BUF_SIZE      (128)
         
-    #define UART1_DMA_RX_IRQHandler     DMA2_Stream2_IRQHandler
-    #define UART1_DMA_TX_IRQHandler     DMA2_Stream7_IRQHandler
+    #define UART1_DMA_RX_IRQHandler     DMA1_Channel5_IRQHandler
+    #define UART1_DMA_TX_IRQHandler     DMA1_Channel4_IRQHandler
 
     #define UART1_GPIO_PORT             GPIOA
     #define UART1_TX_PIN                GPIO_PIN_9
@@ -132,14 +130,12 @@
             .Instance = USART3,                                         \
             .irq_type = USART3_IRQn,                                    \
             .rx_dma   = {                                               \
-                .Instance = DMA1_Stream1,                               \
-                .channel  = DMA_CHANNEL_4,                              \
-                .dma_irq  = DMA1_Stream1_IRQn                           \
+                .Instance = DMA1_Channel3, \
+                .dma_irq  = DMA1_Channel3_IRQn \
             },                                                          \
             .tx_dma   = {                                               \
-                .Instance = DMA1_Stream3,                               \
-                .channel  = DMA_CHANNEL_4,                              \
-                .dma_irq  = DMA1_Stream3_IRQn                           \
+                .Instance = DMA1_Channel2,                               \
+                .dma_irq  = DMA1_Channel2_IRQn \
             },                                                          \
             .using_rx_dma = 1,                                          \
             .using_tx_dma = 1,                                          \
@@ -149,8 +145,8 @@
     #define UART3_TX_BUF_SIZE           (1024)
     #define UART3_RX_TEMP_BUF_SIZE      (128)
         
-    #define UART3_DMA_RX_IRQHandler     DMA1_Stream1_IRQHandler
-    #define UART3_DMA_TX_IRQHandler     DMA1_Stream3_IRQHandler
+    #define UART3_DMA_RX_IRQHandler     DMA1_Channel3_IRQHandler
+    #define UART3_DMA_TX_IRQHandler     DMA1_Channel2_IRQHandler
 
     #define UART3_GPIO_PORT             GPIOB
     #define UART3_TX_PIN                GPIO_PIN_10

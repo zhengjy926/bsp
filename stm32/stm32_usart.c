@@ -317,12 +317,12 @@ static int stm32_uart_configure(serial_t *port, struct serial_configure *cfg)
 static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-#ifdef STM32G474xx 
+#if defined(SOC_SERIES_STM32G4) 
     RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 #endif
 
     if(uartHandle->Instance == USART1) {
-#ifdef STM32G474xx
+#if defined(SOC_SERIES_STM32G4)
         /* Configure peripheral clock */
         PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
         PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
@@ -334,8 +334,10 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         GPIO_InitStruct.Pin = UART1_TX_PIN | UART1_RX_PIN;
         GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+#if defined(SOC_SERIES_STM32F4)
         GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
+#endif
         HAL_GPIO_Init(UART1_GPIO_PORT, &GPIO_InitStruct);
         
         HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
@@ -361,8 +363,10 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         GPIO_InitStruct.Pin = UART3_TX_PIN|UART3_RX_PIN;
         GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+#if defined(SOC_SERIES_STM32F4) 
         GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
+#endif
         HAL_GPIO_Init(UART3_GPIO_PORT, &GPIO_InitStruct);
 
         HAL_NVIC_SetPriority(USART3_IRQn, 5, 0);
@@ -403,9 +407,9 @@ static int stm32_uart_dma_init(struct stm32_uart *uart)
     if (uart->using_rx_dma) {
         /* Configure DMA handle */
         uart->rx_dma.hdma.Instance = uart->rx_dma.Instance;
-#if defined(STM32F429xx)
+#if defined(SOC_SERIES_STM32F4)
         uart->rx_dma.hdma.Init.Channel = uart->rx_dma.channel;
-#elif defined(STM32G474xx)
+#elif defined(SOC_SERIES_STM32G4)
         uart->rx_dma.hdma.Init.Request = uart->rx_dma.request;
 #endif
         uart->rx_dma.hdma.Init.Direction = DMA_PERIPH_TO_MEMORY;
@@ -415,7 +419,9 @@ static int stm32_uart_dma_init(struct stm32_uart *uart)
         uart->rx_dma.hdma.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
         uart->rx_dma.hdma.Init.Mode = DMA_NORMAL;
         uart->rx_dma.hdma.Init.Priority = DMA_PRIORITY_LOW;
+#if defined(SOC_SERIES_STM32F4)
         uart->rx_dma.hdma.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+#endif
 
         if (HAL_DMA_Init(&uart->rx_dma.hdma) != HAL_OK)
             return -EIO;
@@ -443,7 +449,9 @@ static int stm32_uart_dma_init(struct stm32_uart *uart)
         uart->tx_dma.hdma.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
         uart->tx_dma.hdma.Init.Mode = DMA_NORMAL;
         uart->tx_dma.hdma.Init.Priority = DMA_PRIORITY_LOW;
-        uart->tx_dma.hdma.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+#if defined(SOC_SERIES_STM32F4)
+        uart->rx_dma.hdma.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+#endif
 
         if (HAL_DMA_Init(&uart->tx_dma.hdma) != HAL_OK)
             return -EIO;
