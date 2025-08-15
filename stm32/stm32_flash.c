@@ -142,6 +142,7 @@ int stm32_flash_write(struct mtd_info *mtd, uint64_t to, size_t len, size_t *ret
             break; // 如果发生错误，则停止写入
         }
     }
+    *retlen = len;
     
     HAL_FLASH_Lock();
     

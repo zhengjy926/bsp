@@ -20,15 +20,6 @@
 #include "board.h"
 #include "mymath.h"
 
-#if defined(SOC_SERIES_STM32F1)
-    #include "stm32f1xx.h"
-#elif defined(SOC_SERIES_STM32F4)
-    #include "stm32f4xx.h"
-#elif defined(SOC_SERIES_STM32G4)
-    #include "stm32g4xx.h"
-#else
-#error "Please select first the soc series used in your application!"    
-#endif
 /* Private typedef -----------------------------------------------------------*/
 /**
  * @brief STM32 PWM控制器结构体
@@ -159,13 +150,13 @@ static int stm32_pwm_set_polarity(struct stm32_pwm *priv, unsigned int ch,
  * @param pwm PWM设备
  * @return 成功返回0，失败返回负的错误码
  */
-static int stm32_pwm_enable(struct pwm_controller *chip, struct pwm_device *pwm)
+static int stm32_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
     struct stm32_pwm *priv = (struct stm32_pwm*)chip->hw_data;
     HAL_StatusTypeDef hal_ret;
-    uint32_t ch_offset = TIM_CH_TO_HAL_CHANNEL(pwm->channel);
+    uint32_t ch_offset = TIM_CH_TO_HAL_CHANNEL(pwm->hwpwm);
     
-    if (!priv || !pwm || pwm->channel < 1 || pwm->channel > 4)
+    if (!priv || !pwm || pwm->hwpwm < 1 || pwm->hwpwm > 4)
         return -EINVAL;
     
     hal_ret = HAL_TIM_PWM_Start(&priv->htim, ch_offset);
@@ -179,13 +170,13 @@ static int stm32_pwm_enable(struct pwm_controller *chip, struct pwm_device *pwm)
  * @param pwm PWM设备
  * @return 成功返回0，失败返回负的错误码
  */
-static int stm32_pwm_disable(struct pwm_controller *chip, struct pwm_device *pwm)
+static int stm32_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
     struct stm32_pwm *priv = (struct stm32_pwm*)chip->hw_data;
     HAL_StatusTypeDef hal_ret;
-    uint32_t ch_offset = TIM_CH_TO_HAL_CHANNEL(pwm->channel);
+    uint32_t ch_offset = TIM_CH_TO_HAL_CHANNEL(pwm->hwpwm);
     
-    if (!priv || !pwm || pwm->channel < 1 || pwm->channel > 4)
+    if (!priv || !pwm || pwm->hwpwm < 1 || pwm->hwpwm > 4)
         return -EINVAL;
     
     hal_ret = HAL_TIM_PWM_Stop(&priv->htim, ch_offset);
@@ -200,7 +191,7 @@ static int stm32_pwm_disable(struct pwm_controller *chip, struct pwm_device *pwm
  * @param state 要设置的状态
  * @return 成功返回0，失败返回负的错误码
  */
-static int stm32_pwm_set(struct pwm_controller *chip, struct pwm_device *pwm,
+static int stm32_pwm_set(struct pwm_chip *chip, struct pwm_device *pwm,
                            const struct pwm_state *state)
 {
     int ret;
@@ -210,9 +201,9 @@ static int stm32_pwm_set(struct pwm_controller *chip, struct pwm_device *pwm,
         return -EINVAL;
 
 	if (state->polarity != pwm->state.polarity)
-		stm32_pwm_set_polarity(priv, pwm->channel, state->polarity);
+		stm32_pwm_set_polarity(priv, pwm->hwpwm, state->polarity);
 
-	ret = stm32_pwm_config(priv, pwm->channel, state->duty_cycle, state->period);
+	ret = stm32_pwm_config(priv, pwm->hwpwm, state->duty_cycle, state->period);
     
     if (ret)
 		return ret;
@@ -358,9 +349,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
 
 /* PWM操作函数表 */
 static struct pwm_ops stm32_pwm_ops = {
-    .set       = stm32_pwm_set,
-    .enable    = stm32_pwm_enable,
-    .disable   = stm32_pwm_disable,
+    .apply     = stm32_pwm_set,
     .capture   = NULL,
 };
 
@@ -375,7 +364,7 @@ static struct stm32_pwm __stm32_pwm[] = {
 };
 
 /* stm32 pwm 控制器定义 */
-static struct pwm_controller pwm_controller[] = {
+static struct pwm_chip pwm_chip[] = {
     {
         .ops = &stm32_pwm_ops,
         .id = 3,
@@ -389,27 +378,25 @@ static struct pwm_controller pwm_controller[] = {
 /* stm32 pwm 设备定义 */
 static struct pwm_device pwm_dev[] = {
     {
-        .name = "tim3_ch3",
-        .channel = 3,
-        .chip = &pwm_controller[0],
+        .label = "tim3_ch3",
+        .hwpwm = 3,
+        .chip = &pwm_chip[0],
         .state = {
             .period = 500,
             .duty_cycle = 250,
             .polarity = PWM_POLARITY_NORMAL
         },
-        .enabled = false,
     },
     
     {
-        .name = "tim3_ch4",
-        .channel = 4,
-        .chip = &pwm_controller[0],
+        .label = "tim3_ch4",
+        .hwpwm = 4,
+        .chip = &pwm_chip[0],
         .state = {
             .period = 500,
             .duty_cycle = 250,
             .polarity = PWM_POLARITY_NORMAL
         },
-        .enabled = false,
     },
 };
 
