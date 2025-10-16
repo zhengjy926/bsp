@@ -1,22 +1,22 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : stm32_usart.c
+  * @file        : bsp_usart.c
   * @author      : ZJY
   * @version     : V1.0
-  * @date        : 2025-01-27
+  * @date        : 2025-10-16
   * @brief       : STM32 USART driver implementation
   * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.Fixed compilation errors and optimized structure
+  *         V1.0 : 1.Initial version
   *
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "stm32_usart.h"
-#include "usart_config.h"
-#include "stm32_dma.h"
+#include "bsp_usart.h"
+#include "bsp_usart_config.h"
+#include "bsp_dma.h"
 #include "serial.h"
 
 #include <stdio.h>
@@ -540,7 +540,7 @@ static serial_t serial_dev[sizeof(stm_uart_drv)/sizeof(stm_uart_drv[0])];
   * @brief  Initialize STM32 USART hardware
   * @retval 0 on success, negative error code on failure
   */
-int hw_usart_init(void)
+int bsp_uart_init(void)
 {
     int ret = 0;
     

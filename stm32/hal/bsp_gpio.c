@@ -1,34 +1,26 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : gpio.c
+  * @file        : bsp_gpio.c
   * @author      : ZJY
   * @version     : V1.0
-  * @date        : 2024-09-26
+  * @date        : 2025-10-16
   * @brief       : STM32 GPIO driver implementation
   * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.xxx
+  *         V1.0 : 1.Initial version
   *
   *
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "stm32_gpio.h"
+#include "bsp_gpio.h"
 #include "gpio.h"
-
-#if defined(SOC_SERIES_STM32F1)
-    #include "stm32f1xx.h"
-#elif defined(SOC_SERIES_STM32F4)
-    #include "stm32f4xx.h"
-#elif defined(SOC_SERIES_STM32G4)
-    #include "stm32g4xx.h"
-#else
-#error "Please select first the soc series used in your application!"    
-#endif
-
+#include "errno-base.h"
+#include "board.h"
 #include <string.h>
+
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
@@ -616,10 +608,10 @@ void EXTI15_10_IRQHandler(void)
 }
 
 /**
- * @brief Initialize GPIO
+ * @brief Initialize BSP GPIO
  * @return None
  */
-void stm32_gpio_init(void)
+void bsp_gpio_init(void)
 {
 #if defined(__HAL_RCC_GPIOA_CLK_ENABLE)
     __HAL_RCC_GPIOA_CLK_ENABLE();
