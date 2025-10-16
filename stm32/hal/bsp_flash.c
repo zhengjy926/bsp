@@ -1,23 +1,23 @@
 /**
   ******************************************************************************
-  * @file        : stm32_flash.c
+  * @file        : bsp_flash.c
   * @author      : ZJY
   * @version     : V1.0
-  * @date        : 202x-xx-xx
-  * @brief       : xxx
-  * @attention   : xxx
+  * @date        : 2025-10-16
+  * @brief       : STM32 FLASH driver implementation
+  * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 
+  *         V1.0 : 1.Initial version
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "stm32_flash.h"
+#include "bsp_flash.h"
 #include "mtd_core.h"
-#include "board.h"
+#include "bsp_conf.h"
 #include <string.h>
 
-#define  LOG_TAG             "stm32_flash"
+#define  LOG_TAG             "bsp_flash"
 #define  LOG_LVL             4
 #include "log.h"
 
@@ -76,7 +76,7 @@ static uint32_t GetSector(uint32_t Address)
 }
 #endif
 
-int stm32_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
+int bsp_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
     FLASH_EraseInitTypeDef erase_config;
     uint32_t PageError = 0;
@@ -109,7 +109,7 @@ int stm32_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
     return status;
 }
 
-int stm32_flash_read(struct mtd_info *mtd, uint64_t from, size_t len, size_t *retlen, uint8_t *buf)
+int bsp_flash_read(struct mtd_info *mtd, uint64_t from, size_t len, size_t *retlen, uint8_t *buf)
 {
     uint32_t start_addr = (uint32_t)(from + STM32_FLASH_START_ADDR);
     
@@ -119,7 +119,7 @@ int stm32_flash_read(struct mtd_info *mtd, uint64_t from, size_t len, size_t *re
     return len;
 }
 
-int stm32_flash_write(struct mtd_info *mtd, uint64_t to, size_t len, size_t *retlen, const uint8_t *buf)
+int bsp_flash_write(struct mtd_info *mtd, uint64_t to, size_t len, size_t *retlen, const uint8_t *buf)
 {
     int ret = 0;
     uint32_t start_addr = to + STM32_FLASH_START_ADDR;
@@ -149,7 +149,7 @@ int stm32_flash_write(struct mtd_info *mtd, uint64_t to, size_t len, size_t *ret
     return ret;
 }
 
-struct mtd_info stm32_flash_info = {
+struct mtd_info bsp_flash_info = {
     .name = "stm32_flash",
     .flags = MTD_WRITEABLE,
     .size = (uint64_t)(STM32_FLASH_END_ADDR - STM32_FLASH_START_ADDR),

@@ -1,28 +1,28 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : xxx.h
+  * @file        : bsp_flash.h
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 20xx-xx-xx
-  * @brief       : 
+  * @date        : 2025-10-16
+  * @brief       : STM32 FLASH driver header file
   * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.xxx
+  *         V1.0 : 1.Initial version
   *
   *
   ******************************************************************************
   */
-#ifndef __STM32_FLASH_H__
-#define __STM32_FLASH_H__
+#ifndef __BSP_FLASH_H__
+#define __BSP_FLASH_H__
 
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include "sys_def.h"
+#include <stdint.h>
 
 /* Exported define -----------------------------------------------------------*/
 
@@ -31,7 +31,7 @@
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported variable prototypes ----------------------------------------------*/
-extern struct mtd_info stm32_flash_info;
+extern struct mtd_info bsp_flash_info;
 
 /* Exported function prototypes ----------------------------------------------*/
 
@@ -39,5 +39,5 @@ extern struct mtd_info stm32_flash_info;
 }
 #endif /* __cplusplus */
 
-#endif /* __STM32_FLASH_H__ */
+#endif /* __BSP_FLASH_H__ */
 

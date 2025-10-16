@@ -1,21 +1,21 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : xxx.h
+  * @file        : bsp_iwdg.h
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 20xx-xx-xx
-  * @brief       : 
+  * @date        : 2025-10-16
+  * @brief       : STM32 IWDG driver header file
   * @attattention: None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.xxx
+  *         V1.0 : 1.Initial version
   *
   *
   ******************************************************************************
   */
-#ifndef __STM32_IWDG_H__
-#define __STM32_IWDG_H__
+#ifndef __BSP_IWDG_H__
+#define __BSP_IWDG_H__
 
 #ifdef __cplusplus
  extern "C" {
@@ -27,11 +27,11 @@
 /* Exported macro ------------------------------------------------------------*/
 /* Exported variable prototypes ----------------------------------------------*/
 /* Exported function prototypes ----------------------------------------------*/
-int hw_stm32_wdt_init(void);
+int bsp_iwdg_init(void);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* __STM32_IWDG_H__ */
+#endif /* __BSP_IWDG_H__ */
 

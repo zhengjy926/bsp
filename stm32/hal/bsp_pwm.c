@@ -1,23 +1,23 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : stm32_pwm.c
+  * @file        : bsp_pwm.c
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 2025-05-28
+  * @date        : 2025-10-16
   * @brief       : STM32 PWM驱动实现
   * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.add pwm driver
+  *         V1.0 : 1.Initial version
   *
   *
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "stm32_pwm.h"
+#include "bsp_pwm.h"
 #include "pwm.h"
-#include "board.h"
+#include "bsp_conf.h"
 #include "mymath.h"
 
 /* Private typedef -----------------------------------------------------------*/

@@ -1,33 +1,23 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : usart_config.h
+  * @file        : bsp_usart_config.h
   * @author      : ZJY
   * @version     : V1.0
-  * @date        : 2025-01-27
+  * @date        : 2025-10-16
   * @brief       : USART configuration header file
   * @attention   : None
   ******************************************************************************
   */
-#ifndef __USART_CONFIG_H__
-#define __USART_CONFIG_H__
+#ifndef __BSP_USART_CONFIG_H__
+#define __BSP_USART_CONFIG_H__
 
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include "board.h"
-
-#if defined(SOC_SERIES_STM32F1)
-    #include "stm32f1xx.h"
-#elif defined(SOC_SERIES_STM32F4)
-    #include "stm32f4xx.h"
-#elif defined(SOC_SERIES_STM32G4)
-    #include "stm32g4xx.h"
-#else
-#error "Please select first the soc series used in your application!"    
-#endif
+#include "bsp_conf.h"
 
 /* Exported define -----------------------------------------------------------*/
 #if defined(HAL_UART_MODULE_ENABLED)
@@ -192,4 +182,4 @@
 }
 #endif /* __cplusplus */
 
-#endif /* __USART_CONFIG_H__ */
+#endif /* __BSP_USART_CONFIG_H__ */

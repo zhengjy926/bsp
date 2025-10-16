@@ -18,6 +18,7 @@
 #include "bsp_usart_config.h"
 #include "bsp_dma.h"
 #include "serial.h"
+#include "errno-base.h"
 
 #include <stdio.h>
 //#include "SEGGER_SYSVIEW_FreeRTOS.h"

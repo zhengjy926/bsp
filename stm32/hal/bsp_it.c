@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file    stm32_it.c
+ * @file    bsp_it.c
  * @brief   Interrupt Service Routines.
  ******************************************************************************
  * @attention
@@ -16,7 +16,8 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32_it.h"
+#include "bsp_it.h"
+#include "bsp_conf.h"
 
 #if defined(SOC_SERIES_STM32F1)
     #include "stm32f1xx.h"

@@ -1,23 +1,23 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : xxxx.c
+  * @file        : bsp_iwdg.c
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 20xx-xx-xx
-  * @brief       : 
-  * @attattention: None
+  * @date        : 2025-10-16
+  * @brief       : STM32 IWDG driver implementation
+  * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.xxx
+  *         V1.0 : 1.Initial version
   *
   *
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "board.h"
+#include "bsp_iwdg.h"
+#include "bsp_conf.h"
 #include "watchdog.h"
-#include "stm32_iwdg.h"
 /* Private typedef -----------------------------------------------------------*/
 struct stm32_wdt_obj
 {
@@ -108,7 +108,7 @@ static int wdt_control(watchdog_t *wdt, int cmd, void *arg)
     return 0;
 }
 
-int hw_stm32_wdt_init(void)
+int bsp_iwdg_init(void)
 {
     stm32_wdt.hiwdg.Instance = IWDG;
     stm32_wdt.hiwdg.Init.Prescaler = IWDG_PRESCALER_256;
