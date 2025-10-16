@@ -1,22 +1,22 @@
 /**
   ******************************************************************************
-  * @file        : stm32_spi.c
+  * @file        : bsp_spi.c
   * @author      : ZJY
   * @version     : V1.0
-  * @date        : 2025-05-30
+  * @date        : 2025-10-16
   * @brief       : STM32 SPI驱动实现
   * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.初始版本
+  *         V1.0 : 1.Initial version
   *
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "stm32_spi.h"
-#include "stm32_dma.h"
+#include "bsp_spi.h"
+#include "bsp_dma.h"
 #include "spi.h"
-#include "board.h"
+#include "bsp_conf.h"
 #include "gpio.h"
 #include <stdlib.h>
 #include <assert.h>
@@ -402,7 +402,7 @@ static const struct spi_ops stm_spi_ops = {
 
 static struct spi_bus spi_bus[sizeof(stm_spi_drv)/sizeof(stm_spi_drv[0])];
 
-int hw_spi_init(void)
+int bsp_spi_init(void)
 {
     int ret = 0;
     

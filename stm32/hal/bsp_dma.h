@@ -22,17 +22,7 @@
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include "sys_def.h"
-
-#if defined(SOC_SERIES_STM32F1)
-    #include "stm32f1xx.h"
-#elif defined(SOC_SERIES_STM32F4)
-    #include "stm32f4xx.h"
-#elif defined(SOC_SERIES_STM32G4)
-    #include "stm32g4xx.h"
-#else
-#error "Please select first the soc series used in your application!"    
-#endif
+#include "bsp_conf.h"
 
 /* Exported define -----------------------------------------------------------*/
 #if defined(SOC_SERIES_STM32F4)

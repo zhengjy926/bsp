@@ -1,28 +1,28 @@
 /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : stm32_pwm.h
+  * @file        : bsp_pwm.h
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 2025-05-28
+  * @date        : 2025-10-16
   * @brief       : STM32 PWM驱动头文件
   * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.add pwm driver
+  *         V1.0 : 1.Initial version
   *
   *
   ******************************************************************************
   */
-#ifndef __STM32_PWM_H__
-#define __STM32_PWM_H__
+#ifndef __BSP_PWM_H__
+#define __BSP_PWM_H__
 
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include "sys_def.h"
+#include <stdint.h>
 
 /* Exported define -----------------------------------------------------------*/
 /**
@@ -39,17 +39,17 @@
  * @brief 初始化TIM3 PWM并注册设备
  * @return 成功返回0，失败返回负的错误码
  */
-int stm32_pwm_tim3_init(void);
+int bsp_pwm_tim3_init(void);
 
 /**
  * @brief 初始化指定定时器的PWM
  * @param tim_num 定时器编号(1,2,3,...)
  * @return 成功返回0，失败返回负的错误码
  */
-int stm32_pwm_init_timer(uint8_t tim_num);
+int bsp_pwm_init_timer(uint8_t tim_num);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* __STM32_PWM_H__ */
+#endif /* __BSP_PWM_H__ */

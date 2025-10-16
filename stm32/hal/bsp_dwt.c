@@ -1,30 +1,22 @@
 /**
   ******************************************************************************
-  * @file        : stm32_dwt.c
+  * @file        : bsp_dwt.c
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 20xx-xx-xx
-  * @brief       : 
+  * @data        : 2025-10-16
+  * @brief       : STM32 DWT driver implementation
   * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.xxx
+  *         V1.0 : 1.Initial version
   *
   *
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "stm32_dwt.h"
+#include "bsp_dwt.h"
+#include "bsp_conf.h"
 
-#if defined(SOC_SERIES_STM32F1)
-    #include "stm32f1xx.h"
-#elif defined(SOC_SERIES_STM32F4)
-    #include "stm32f4xx.h"
-#elif defined(SOC_SERIES_STM32G4)
-    #include "stm32g4xx.h"
-#else
-#error "Please select first the soc series used in your application!"    
-#endif
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
@@ -42,7 +34,7 @@ static volatile uint32_t g_dwt_last_cyccnt = 0;
 /* Private function prototypes -----------------------------------------------*/
 
 /* Exported functions --------------------------------------------------------*/
-int32_t stm32_dwt_init(void)
+int32_t bsp_dwt_init(void)
 {
     /* 检查内核是否支持DWT, Cortex-M0/M0+ 不支持 */ 
 #if (__CORTEX_M < 3)
@@ -60,12 +52,12 @@ int32_t stm32_dwt_init(void)
  * @param  None
  * @retval Current cycle count.
  */
-uint32_t dwt_get_tick(void)
+uint32_t bsp_dwt_get_tick(void)
 {
     return DWT->CYCCNT;
 }
 
-void dwt_update_overflow_counter(void)
+void bsp_dwt_update_overflow_counter(void)
 {
     uint32_t current_cyccnt = DWT->CYCCNT;
     
@@ -79,7 +71,7 @@ void dwt_update_overflow_counter(void)
     g_dwt_last_cyccnt = current_cyccnt;
 }
 
-double dwt_get_seconds(void)
+double bsp_dwt_get_seconds(void)
 {
     /* 为保证读取的原子性，临时禁用中断 */
     uint32_t primask = __get_PRIMASK();
@@ -104,7 +96,7 @@ double dwt_get_seconds(void)
     return (double)total_cycles / SystemCoreClock;
 }
 
-void dwt_delay_us(uint32_t time_us)
+void bsp_dwt_delay_us(uint32_t time_us)
 {
 	uint32_t ticks_start, ticks_cnt, ticks_delay = 0;
     
@@ -117,10 +109,10 @@ void dwt_delay_us(uint32_t time_us)
 	}
 }
 
-void dwt_delay_ms(uint32_t time_ms)
+void bsp_dwt_delay_ms(uint32_t time_ms)
 {
-    dwt_delay_us(1000 * time_ms);
+    bsp_dwt_delay_us(1000 * time_ms);
 }
 /* Private functions ---------------------------------------------------------*/
 
-/* End of stm32_dwt.c -----------------------------------------------------------------------*/
+/* End of bsp_dwt.c -----------------------------------------------------------------------*/

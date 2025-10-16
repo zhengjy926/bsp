@@ -1,20 +1,20 @@
 /**
   ******************************************************************************
-  * @file        : xxx.h
+  * @file        : bsp_hwtimer.h
   * @author      : ZJY
   * @version     : V1.0
-  * @data        : 20xx-xx-xx
-  * @brief       : 
+  * @date        : 2025-10-16
+  * @brief       : STM32 HWTIMER driver header file
   * @attattention: None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.xxx
+  *         V1.0 : 1.Initial version
   *
   *
   ******************************************************************************
   */
-#ifndef __STM32_HWTIMER_H__
-#define __STM32_HWTIMER_H__
+#ifndef __BSP_HWTIMER_H__
+#define __BSP_HWTIMER_H__
 
 #ifdef __cplusplus
  extern "C" {
@@ -36,5 +36,5 @@
 }
 #endif /* __cplusplus */
 
-#endif /* __STM32_HWTIMER_H__ */
+#endif /* __BSP_HWTIMER_H__ */
 

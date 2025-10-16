@@ -21,6 +21,7 @@
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
+#include "bsp_conf.h"
 
 /* Exported define -----------------------------------------------------------*/
 
@@ -29,9 +30,12 @@
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported variable prototypes ----------------------------------------------*/
+extern ADC_HandleTypeDef hadc1;
+extern ADC_HandleTypeDef hadc2;
 
 /* Exported function prototypes ----------------------------------------------*/
-void bsp_adc_init(void);
+void bsp_adc1_init(void);
+void bsp_adc2_init(void);
 
 #ifdef __cplusplus
 }

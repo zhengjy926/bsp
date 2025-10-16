@@ -1,4 +1,4 @@
-/**
+ /**
   ******************************************************************************
   * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
   * @file        : bsp_gpio.c
@@ -18,7 +18,7 @@
 #include "bsp_gpio.h"
 #include "gpio.h"
 #include "errno-base.h"
-#include "board.h"
+#include "bsp_conf.h"
 #include <string.h>
 
 /* Private typedef -----------------------------------------------------------*/
