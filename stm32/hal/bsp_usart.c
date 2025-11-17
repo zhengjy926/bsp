@@ -20,6 +20,8 @@
 #include "serial.h"
 #include "errno-base.h"
 #include <stdio.h>
+//#include "SEGGER_SYSVIEW_FreeRTOS.h"
+//#include "SEGGER_SYSVIEW_FreeRTOS.h"
 
 #define  LOG_TAG             "bsp_uart"
 #define  LOG_LVL             4

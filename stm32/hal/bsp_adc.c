@@ -16,6 +16,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_adc.h"
 #include "bsp_conf.h"
+#include "bsp_conf.h"
 #include "errno-base.h"
 #include "board.h"
 
@@ -130,7 +131,7 @@ void bsp_adc1_init(void)
   {
     Error_Handler();
   }
-    /* 校准 */
+    /* У׼ */
     if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK)
     {
         Error_Handler();
@@ -187,7 +188,7 @@ void bsp_adc2_init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN ADC2_Init 2 */
-    /* 校准 */
+    /* У׼ */
     if (HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED) != HAL_OK)
     {
         Error_Handler();
