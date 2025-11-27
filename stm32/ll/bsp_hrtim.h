@@ -33,7 +33,7 @@
 /* Exported variable prototypes ----------------------------------------------*/
 
 /* Exported function prototypes ----------------------------------------------*/
-void bsp_hrtim_init(void);
+int bsp_hrtim_init(void);
 uint16_t tim_arr_from_ms(uint32_t ms);
 
 #ifdef __cplusplus
