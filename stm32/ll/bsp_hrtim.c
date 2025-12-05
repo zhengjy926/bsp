@@ -38,6 +38,7 @@
 
 
 /* Private function prototypes -----------------------------------------------*/
+static void HRTIM_Fault_Configuration(void);
 
 /* Exported functions --------------------------------------------------------*/
 int bsp_hrtim_init(void)
@@ -67,6 +68,9 @@ int bsp_hrtim_init(void)
     NVIC_SetPriority(HRTIM1_TIMB_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
     NVIC_EnableIRQ(HRTIM1_TIMB_IRQn);
     
+    /* 故障保护配置 */
+    HRTIM_Fault_Configuration();
+    
     /* 突发模式配置 */
     LL_HRTIM_BM_SetMode(HRTIM1, LL_HRTIM_BM_MODE_SINGLESHOT);
     LL_HRTIM_BM_SetClockSrc(HRTIM1, LL_HRTIM_BM_CLKSRC_FHRTIM);
@@ -92,6 +96,14 @@ int bsp_hrtim_init(void)
     LL_HRTIM_TIM_DisablePushPullMode(HRTIM1, LL_HRTIM_TIMER_A);
     LL_HRTIM_TIM_DisableDeadTime(HRTIM1, LL_HRTIM_TIMER_A);
     LL_HRTIM_TIM_SetBurstModeOption(HRTIM1, LL_HRTIM_TIMER_A, LL_HRTIM_BURSTMODE_RESETCOUNTER);
+    
+    /* ============================================================ */
+    /* 将故障应用到具体的定时器输出 (以 Timer A 为例)               */
+    /* ============================================================ */
+    /* 重要：仅仅使能 Fault 通道是不够的，必须告诉 Timer A 也要受其控制 */
+    /* 启用 Timer A 的 Fault 4 和 Fault 5 功能 */
+    LL_HRTIM_TIM_EnableFault(HRTIM1, LL_HRTIM_TIMER_A,
+                             LL_HRTIM_FAULT_4 | LL_HRTIM_FAULT_5);                      
     LL_HRTIM_ForceUpdate(HRTIM1, LL_HRTIM_TIMER_A);
     
 
@@ -99,16 +111,14 @@ int bsp_hrtim_init(void)
     LL_HRTIM_TIM_SetCompareMode(HRTIM1, LL_HRTIM_TIMER_A, LL_HRTIM_COMPAREUNIT_2, LL_HRTIM_COMPAREMODE_REGULAR);
     LL_HRTIM_TIM_SetCompare2(HRTIM1, LL_HRTIM_TIMER_A, 0xFFFB);
     LL_HRTIM_TIM_SetCompare3(HRTIM1, LL_HRTIM_TIMER_A, 0xFFFB);
-    LL_HRTIM_TIM_ConfigBurstDMA(HRTIM1, LL_HRTIM_TIMER_A, LL_HRTIM_BURSTDMA_MPER|LL_HRTIM_BURSTDMA_MREP
-                                  |LL_HRTIM_BURSTDMA_MCMP1|LL_HRTIM_BURSTDMA_MCMP2
-                                  |LL_HRTIM_BURSTDMA_MCMP3);
 
     LL_HRTIM_OUT_SetPolarity(HRTIM1, LL_HRTIM_OUTPUT_TA1, LL_HRTIM_OUT_POSITIVE_POLARITY);
     LL_HRTIM_OUT_SetOutputSetSrc(HRTIM1, LL_HRTIM_OUTPUT_TA1, LL_HRTIM_OUTPUTSET_TIMCMP1);
     LL_HRTIM_OUT_SetOutputResetSrc(HRTIM1, LL_HRTIM_OUTPUT_TA1, LL_HRTIM_OUTPUTRESET_TIMCMP2|LL_HRTIM_OUTPUTRESET_TIMPER);
     LL_HRTIM_OUT_SetIdleMode(HRTIM1, LL_HRTIM_OUTPUT_TA1, LL_HRTIM_OUT_IDLE_WHEN_BURST);
     LL_HRTIM_OUT_SetIdleLevel(HRTIM1, LL_HRTIM_OUTPUT_TA1, LL_HRTIM_OUT_IDLELEVEL_INACTIVE);
-    LL_HRTIM_OUT_SetFaultState(HRTIM1, LL_HRTIM_OUTPUT_TA1, LL_HRTIM_OUT_FAULTSTATE_NO_ACTION);
+    /* 配置故障时的输出电平状态 */
+    LL_HRTIM_OUT_SetFaultState(HRTIM1, LL_HRTIM_OUTPUT_TA1, LL_HRTIM_OUT_FAULTSTATE_INACTIVE);
     LL_HRTIM_OUT_SetChopperMode(HRTIM1, LL_HRTIM_OUTPUT_TA1, LL_HRTIM_OUT_CHOPPERMODE_DISABLED);
     
     LL_HRTIM_OUT_SetPolarity(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_POSITIVE_POLARITY);
@@ -119,6 +129,9 @@ int bsp_hrtim_init(void)
     LL_HRTIM_OUT_SetFaultState(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_FAULTSTATE_NO_ACTION);
     LL_HRTIM_OUT_SetChopperMode(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_CHOPPERMODE_DISABLED);
 
+    /* ============================================================ */
+    /*  Timer B 配置                                                */
+    /* ============================================================ */
     LL_HRTIM_TIM_SetPrescaler(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_PRESCALERRATIO_MUL4);
     LL_HRTIM_TIM_SetCounterMode(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_MODE_CONTINUOUS);
     LL_HRTIM_TIM_SetPeriod(HRTIM1, LL_HRTIM_TIMER_B, 0xFFFB);
@@ -138,12 +151,25 @@ int bsp_hrtim_init(void)
     LL_HRTIM_TIM_SetBurstModeOption(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_BURSTMODE_RESETCOUNTER);
     LL_HRTIM_ForceUpdate(HRTIM1, LL_HRTIM_TIMER_B);
     LL_HRTIM_TIM_ConfigBurstDMA(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_BURSTDMA_MPER|LL_HRTIM_BURSTDMA_MREP);
-    /* USER CODE BEGIN HRTIM1_Init 2 */
 
     LL_HRTIM_ClearFlag_REP(HRTIM1, LL_HRTIM_TIMER_B);
     LL_HRTIM_EnableIT_REP(HRTIM1, LL_HRTIM_TIMER_B);
+    
+    /* 清除标志 */
+    LL_HRTIM_ClearFlag_FLT4(HRTIM1);
+    LL_HRTIM_ClearFlag_FLT5(HRTIM1);
 
-    /* USER CODE END HRTIM1_Init 2 */
+    /* 使能 HRTIM 故障中断源  */
+    LL_HRTIM_EnableIT_FLT4(HRTIM1);
+    LL_HRTIM_EnableIT_FLT5(HRTIM1);
+
+    /* 配置 NVIC (嵌套向量中断控制器) */
+    NVIC_SetPriority(HRTIM1_FLT_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 0, 0));
+    NVIC_EnableIRQ(HRTIM1_FLT_IRQn);
+    
+    /* ============================================================ */
+    /*  GPIO 配置                                                   */
+    /* ============================================================ */
     LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
     /**HRTIM1 GPIO Configuration
     PA8     ------> HRTIM1_CHA1
@@ -166,6 +192,45 @@ int bsp_hrtim_init(void)
     LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
     
     return 0;
+}
+/**
+  * @brief  配置 HRTIM 故障保护，使用 COMP1 和 COMP3 作为源
+  * @note   需确保 COMP1 和 COMP3 已在其他地方被初始化并使能
+  */
+static void HRTIM_Fault_Configuration(void)
+{
+    /* ============================================================ */
+    /* 配置 Fault 4 (对应 COMP1)                                     */
+    /* ============================================================ */
+    
+    /* 设置故障源为内部 (Internal)，即连接到 COMP1 */
+    LL_HRTIM_FLT_SetSrc(HRTIM1, LL_HRTIM_FAULT_4, LL_HRTIM_FLT_SRC_INTERNAL);
+    
+    /* 设置极性 */
+    LL_HRTIM_FLT_SetPolarity(HRTIM1, LL_HRTIM_FAULT_4, LL_HRTIM_FLT_POLARITY_HIGH);
+    
+    /* 设置滤波 */
+    LL_HRTIM_FLT_SetFilter(HRTIM1, LL_HRTIM_FAULT_4, LL_HRTIM_FLT_FILTER_NONE);
+    
+    /* 使能 Fault 4 通道 */
+    LL_HRTIM_FLT_Enable(HRTIM1, LL_HRTIM_FAULT_4);
+
+
+    /* ============================================================ */
+    /* 配置 Fault 5 (对应 COMP3)                                     */
+    /* ============================================================ */
+
+    /* 设置故障源为内部 (Internal)，即连接到 COMP3 */
+    LL_HRTIM_FLT_SetSrc(HRTIM1, LL_HRTIM_FAULT_5, LL_HRTIM_FLT_SRC_INTERNAL);
+    
+    /* 设置极性 */
+    LL_HRTIM_FLT_SetPolarity(HRTIM1, LL_HRTIM_FAULT_5, LL_HRTIM_FLT_POLARITY_HIGH);
+    
+    /* 设置滤波 */
+    LL_HRTIM_FLT_SetFilter(HRTIM1, LL_HRTIM_FAULT_5, LL_HRTIM_FLT_FILTER_NONE);
+    
+    /* 使能 Fault 5 通道 */
+    LL_HRTIM_FLT_Enable(HRTIM1, LL_HRTIM_FAULT_5);
 }
 
 uint16_t tim_arr_from_ms(uint32_t ms)

@@ -16,7 +16,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_comp.h"
 #include "board.h"
-#include "current_monitor.h"
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -44,7 +43,7 @@ void MX_COMP1_Init(void)
     hcomp1.Init.InputPlus = COMP_INPUT_PLUS_IO1;
     hcomp1.Init.InputMinus = COMP_INPUT_MINUS_DAC3_CH1;
     hcomp1.Init.OutputPol = COMP_OUTPUTPOL_NONINVERTED;
-    hcomp1.Init.Hysteresis = COMP_HYSTERESIS_NONE;
+    hcomp1.Init.Hysteresis = COMP_HYSTERESIS_70MV;
     hcomp1.Init.BlankingSrce = COMP_BLANKINGSRC_NONE;
     hcomp1.Init.TriggerMode = COMP_TRIGGERMODE_IT_RISING;
     if (HAL_COMP_Init(&hcomp1) != HAL_OK)
@@ -59,7 +58,7 @@ void MX_COMP3_Init(void)
     hcomp3.Init.InputPlus = COMP_INPUT_PLUS_IO1;
     hcomp3.Init.InputMinus = COMP_INPUT_MINUS_DAC1_CH1;
     hcomp3.Init.OutputPol = COMP_OUTPUTPOL_NONINVERTED;
-    hcomp3.Init.Hysteresis = COMP_HYSTERESIS_NONE;
+    hcomp3.Init.Hysteresis = COMP_HYSTERESIS_70MV;
     hcomp3.Init.BlankingSrce = COMP_BLANKINGSRC_NONE;
     hcomp3.Init.TriggerMode = COMP_TRIGGERMODE_IT_RISING;
     if (HAL_COMP_Init(&hcomp3) != HAL_OK)

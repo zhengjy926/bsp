@@ -31,10 +31,10 @@
 
 /* Exported function prototypes ----------------------------------------------*/
 int32_t bsp_dwt_init(void);
-void bsp_dwt_update_overflow_counter(void);
-double bsp_dwt_get_seconds(void);
-void bsp_dwt_delay_us(uint32_t time_us);
-void bsp_dwt_delay_ms(uint32_t time_ms);
+void    bsp_dwt_update_overflow_counter(void);
+double  bsp_dwt_get_seconds(void);
+void    bsp_dwt_delay_us(uint32_t time_us);
+void    bsp_dwt_delay_ms(uint32_t time_ms);
 
 #ifdef __cplusplus
 }
