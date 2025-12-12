@@ -126,7 +126,7 @@ int bsp_hrtim_init(void)
     LL_HRTIM_OUT_SetOutputResetSrc(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUTPUTRESET_TIMPER);
     LL_HRTIM_OUT_SetIdleMode(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_IDLE_WHEN_BURST);
     LL_HRTIM_OUT_SetIdleLevel(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_IDLELEVEL_INACTIVE);
-    LL_HRTIM_OUT_SetFaultState(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_FAULTSTATE_NO_ACTION);
+    LL_HRTIM_OUT_SetFaultState(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_FAULTSTATE_INACTIVE);
     LL_HRTIM_OUT_SetChopperMode(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_CHOPPERMODE_DISABLED);
 
     /* ============================================================ */
@@ -219,17 +219,9 @@ static void HRTIM_Fault_Configuration(void)
     /* ============================================================ */
     /* 配置 Fault 5 (对应 COMP3)                                     */
     /* ============================================================ */
-
-    /* 设置故障源为内部 (Internal)，即连接到 COMP3 */
     LL_HRTIM_FLT_SetSrc(HRTIM1, LL_HRTIM_FAULT_5, LL_HRTIM_FLT_SRC_INTERNAL);
-    
-    /* 设置极性 */
     LL_HRTIM_FLT_SetPolarity(HRTIM1, LL_HRTIM_FAULT_5, LL_HRTIM_FLT_POLARITY_HIGH);
-    
-    /* 设置滤波 */
     LL_HRTIM_FLT_SetFilter(HRTIM1, LL_HRTIM_FAULT_5, LL_HRTIM_FLT_FILTER_NONE);
-    
-    /* 使能 Fault 5 通道 */
     LL_HRTIM_FLT_Enable(HRTIM1, LL_HRTIM_FAULT_5);
 }
 

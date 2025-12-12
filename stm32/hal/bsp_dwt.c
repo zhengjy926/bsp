@@ -98,15 +98,13 @@ double bsp_dwt_get_seconds(void)
 
 void bsp_dwt_delay_us(uint32_t time_us)
 {
-	uint32_t ticks_start, ticks_cnt, ticks_delay = 0;
+    uint32_t ticks_start = DWT->CYCCNT;
     
-    ticks_start = DWT->CYCCNT;
-	ticks_delay = time_us * (SystemCoreClock / 1000000);
+	uint32_t ticks_delay = time_us * (SystemCoreClock / 1000000);
 
-	while(ticks_cnt < ticks_delay)
-	{
-		ticks_cnt = DWT->CYCCNT - ticks_start;
-	}
+    while ((DWT->CYCCNT - ticks_start) < ticks_delay)
+    {
+    }
 }
 
 void bsp_dwt_delay_ms(uint32_t time_ms)
