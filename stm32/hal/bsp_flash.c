@@ -28,9 +28,6 @@
 
 /* Private define ------------------------------------------------------------*/
 
-/* Private macro -------------------------------------------------------------*/
-
-/* Private variables ---------------------------------------------------------*/
 #ifndef STM32_FLASH_START_ADDR
     #error "Please define the STM32_FLASH_START_ADDR!"
 #endif
@@ -43,13 +40,18 @@
     #error "Please define the STM32_FLASH_ERASE_SIZE!"
 #endif
 
+/* Private macro -------------------------------------------------------------*/
+
+/* Private variables ---------------------------------------------------------*/
+
+
 /* Exported variables  -------------------------------------------------------*/
 
 /* Private function prototypes -----------------------------------------------*/
 
 /* Exported functions --------------------------------------------------------*/
 
-#if defined(SOC_SERIES_STM32F1) || defined(SOC_SERIES_STM32G4)
+#if defined(STM32F1) || defined(STM32G4)
 /**
   * @brief  获取给定地址所在的页号
   * @param  Addr Flash地址
@@ -58,17 +60,7 @@
 static uint32_t GetPage(uint32_t Addr)
 {
     uint32_t page = 0;
-
-#if defined(SOC_SERIES_STM32F1)
-    if (Addr < (FLASH_BASE + FLASH_BANK_SIZE)) {
-        page = (Addr - FLASH_BASE) / FLASH_PAGE_SIZE;
-    } else {
-        page = (Addr - (FLASH_BASE + FLASH_BANK_SIZE)) / FLASH_PAGE_SIZE;
-    }
-#else  /* SOC_SERIES_STM32G4 */
     page = (Addr - FLASH_BASE) / FLASH_PAGE_SIZE;
-#endif
-
     return page;
 }
 
@@ -147,14 +139,14 @@ static int bsp_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
     }
 
     /* 根据芯片系列选择擦除方式 */
-#if defined(SOC_SERIES_STM32F1) || defined(SOC_SERIES_STM32G4)
+#if defined(STM32F1) || defined(STM32G4)
     erase_config.TypeErase = FLASH_TYPEERASE_PAGES;
     
-#if defined(SOC_SERIES_STM32F1)
+#if defined(STM32F1)
     erase_config.PageAddress = start_addr;
     erase_config.Banks = GetBank(start_addr);
     erase_config.NbPages = (len + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE;
-#else  /* SOC_SERIES_STM32G4 */
+#else  /* STM32G4 */
     erase_config.Page = GetPage(start_addr);
     erase_config.Banks = GetBank(start_addr);
     erase_config.NbPages = (len + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE;
@@ -242,7 +234,7 @@ static int bsp_flash_write(struct mtd_info *mtd, mtd_addr_t to, size_t len,
     }
 
     /* 根据芯片系列选择编程方式 */
-#if defined(SOC_SERIES_STM32F1)
+#if defined(STM32F1)
     /* F1按半字（2字节）编程 */
     for (size_t i = 0; i < len; i += 2) {
         uint16_t data_to_write = 0xFFFF;
@@ -276,7 +268,7 @@ static int bsp_flash_write(struct mtd_info *mtd, mtd_addr_t to, size_t len,
         written += chunk_len;
     }
 
-#elif defined(SOC_SERIES_STM32G4)
+#elif defined(STM32G4)
     /* G4按双字（8字节）编程 */
     for (size_t i = 0; i < len; i += 8) {
         uint64_t data_to_write = 0xFFFFFFFFFFFFFFFFULL;
@@ -313,13 +305,13 @@ struct mtd_info bsp_flash_info = {
     .flags = MTD_WRITEABLE,
     .size = (STM32_FLASH_END_ADDR - STM32_FLASH_START_ADDR + 1),
     .erasesize = STM32_FLASH_ERASE_SIZE,
-#if defined(SOC_SERIES_STM32F1)
+#if defined(STM32F1)
     .writesize = 2,          /* F1: 半字（2字节） */
     .writesize_shift = 1,
 #elif defined(SOC_SERIES_STM32F4)
     .writesize = 4,          /* F4: 字（4字节） */
     .writesize_shift = 2,
-#elif defined(SOC_SERIES_STM32G4)
+#elif defined(STM32G4)
     .writesize = 8,          /* G4: 双字（8字节） */
     .writesize_shift = 3,
 #endif
