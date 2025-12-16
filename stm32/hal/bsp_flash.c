@@ -28,9 +28,6 @@
 
 /* Private define ------------------------------------------------------------*/
 
-/* Private macro -------------------------------------------------------------*/
-
-/* Private variables ---------------------------------------------------------*/
 #ifndef STM32_FLASH_START_ADDR
     #error "Please define the STM32_FLASH_START_ADDR!"
 #endif
@@ -42,6 +39,11 @@
 #ifndef STM32_FLASH_ERASE_SIZE
     #error "Please define the STM32_FLASH_ERASE_SIZE!"
 #endif
+
+/* Private macro -------------------------------------------------------------*/
+
+/* Private variables ---------------------------------------------------------*/
+
 
 /* Exported variables  -------------------------------------------------------*/
 
@@ -58,17 +60,7 @@
 static uint32_t GetPage(uint32_t Addr)
 {
     uint32_t page = 0;
-
-#if defined(SOC_SERIES_STM32F1)
-    if (Addr < (FLASH_BASE + FLASH_BANK_SIZE)) {
-        page = (Addr - FLASH_BASE) / FLASH_PAGE_SIZE;
-    } else {
-        page = (Addr - (FLASH_BASE + FLASH_BANK_SIZE)) / FLASH_PAGE_SIZE;
-    }
-#else  /* SOC_SERIES_STM32G4 */
     page = (Addr - FLASH_BASE) / FLASH_PAGE_SIZE;
-#endif
-
     return page;
 }
 

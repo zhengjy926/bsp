@@ -318,7 +318,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
         GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
         GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+#ifndef SOC_SERIES_STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF1_TIM1;
+#endif
         HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
     }
     else if(timHandle->Instance == TIM3)
@@ -330,7 +332,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
         GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
         GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+#ifndef SOC_SERIES_STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
+#endif
         HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
     }
     else if(timHandle->Instance == TIM5)
@@ -342,7 +346,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
         GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
         GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+#ifndef SOC_SERIES_STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF2_TIM5;
+#endif
         HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
     }
 }
