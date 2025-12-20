@@ -34,10 +34,9 @@ struct stm32_uart {
     DMA_HandleTypeDef hdma_uart_rx;
     DMA_HandleTypeDef hdma_uart_tx;
     char *name;
-    uint8_t *rx_dma_buf;
-    uint16_t rx_dma_bufsz;
+    uint8_t *rx_cache_buf;
+    uint16_t rx_cache_bufsz;
     uint16_t last_pos;
-    uint8_t *rx_it_buf;  /* 中断模式单字节接收缓冲区 */
     uint8_t index;
 };
 
@@ -89,91 +88,55 @@ static serial_t serial_dev[UART_INDEX_MAX]; /* 串口设备数组 */
 #if defined(BSP_USING_UART1)
     static uint8_t uart1_rx_buf[UART1_RX_BUF_SIZE]         = {0};
     static uint8_t uart1_tx_buf[UART1_TX_BUF_SIZE]         = {0};
-#if defined(BSP_UART1_RX_USING_DMA)
-    static uint8_t uart1_rx_dma_buf[UART1_RX_DMA_BUF_SIZE] = {0};
-#else
-    static uint8_t uart1_rx_it_buf                         = 0;  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t uart1_rx_cache_buf[UART1_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART1
 
 #if defined(BSP_USING_UART2)
     static uint8_t uart2_rx_buf[UART2_RX_BUF_SIZE]              = {0};
     static uint8_t uart2_tx_buf[UART2_TX_BUF_SIZE]              = {0};
-#if defined(BSP_UART2_RX_USING_DMA)
-    static uint8_t uart2_rx_dma_buf[UART2_RX_DMA_BUF_SIZE]     = {0};
-#else
-    static uint8_t uart2_rx_it_buf                         = {0};  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t uart2_rx_cache_buf[UART2_RX_CACHE_BUF_SIZE]     = {0};
 #endif // BSP_USING_UART2
 
 #if defined(BSP_USING_UART3)
     static uint8_t uart3_rx_buf[UART3_RX_BUF_SIZE]              = {0};
     static uint8_t uart3_tx_buf[UART3_TX_BUF_SIZE]              = {0};
-#if defined(BSP_UART3_RX_USING_DMA)
-    static uint8_t uart3_rx_dma_buf[UART3_RX_DMA_BUF_SIZE]     = {0};
-#else
-    static uint8_t uart3_rx_it_buf                         = {0};  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t uart3_rx_cache_buf[UART3_RX_CACHE_BUF_SIZE]     = {0};
 #endif // BSP_USING_UART3
 
 #if defined(BSP_USING_UART4)
     static uint8_t uart4_rx_buf[UART4_RX_BUF_SIZE]              = {0};
     static uint8_t uart4_tx_buf[UART4_TX_BUF_SIZE]              = {0};
-#if defined(BSP_UART4_RX_USING_DMA)
-    static uint8_t uart4_rx_dma_buf[UART4_RX_DMA_BUF_SIZE]     = {0};
-#else
-    static uint8_t uart4_rx_it_buf                         = {0};  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t uart4_rx_cache_buf[UART4_RX_CACHE_BUF_SIZE]     = {0};
 #endif // BSP_USING_UART4
 
 #if defined(BSP_USING_UART5)
     static uint8_t uart5_rx_buf[UART5_RX_BUF_SIZE]              = {0};
     static uint8_t uart5_tx_buf[UART5_TX_BUF_SIZE]              = {0};
-#if defined(BSP_UART5_RX_USING_DMA)
-    static uint8_t uart5_rx_dma_buf[UART5_RX_DMA_BUF_SIZE]     = {0};
-#else
-    static uint8_t uart5_rx_it_buf                         = {0};  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t uart5_rx_cache_buf[UART5_RX_CACHE_BUF_SIZE]     = {0};
 #endif // BSP_USING_UART5
 
 #if defined(BSP_USING_UART6)
     static uint8_t uart6_rx_buf[UART6_RX_BUF_SIZE]              = {0};
     static uint8_t uart6_tx_buf[UART6_TX_BUF_SIZE]              = {0};
-#if defined(BSP_UART6_RX_USING_DMA)
-    static uint8_t uart6_rx_dma_buf[UART6_RX_DMA_BUF_SIZE]     = {0};
-#else
-    static uint8_t uart6_rx_it_buf                         = {0};  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t uart6_rx_cache_buf[UART6_RX_CACHE_BUF_SIZE]     = {0};
 #endif // BSP_USING_UART6
 
 #if defined(BSP_USING_UART7)
     static uint8_t uart7_rx_buf[UART7_RX_BUF_SIZE]              = {0};
     static uint8_t uart7_tx_buf[UART7_TX_BUF_SIZE]              = {0};
-#if defined(BSP_UART7_RX_USING_DMA)
-    static uint8_t uart7_rx_dma_buf[UART7_RX_DMA_BUF_SIZE]     = {0};
-#else
-    static uint8_t uart7_rx_it_buf                         = {0};  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t uart7_rx_cache_buf[UART7_RX_CACHE_BUF_SIZE]     = {0};
 #endif // BSP_USING_UART7
 
 #if defined(BSP_USING_UART8)
     static uint8_t uart8_rx_buf[UART8_RX_BUF_SIZE]              = {0};
     static uint8_t uart8_tx_buf[UART8_TX_BUF_SIZE]              = {0};
-#if defined(BSP_UART8_RX_USING_DMA)
-    static uint8_t uart8_rx_dma_buf[UART8_RX_DMA_BUF_SIZE]     = {0};
-#else
-    static uint8_t uart8_rx_it_buf                         = {0};  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t uart8_rx_cache_buf[UART8_RX_CACHE_BUF_SIZE]     = {0};
 #endif // BSP_USING_UART8
 
 #if defined(BSP_USING_LPUART1)
     static uint8_t lpuart1_rx_buf[LPUART1_RX_BUF_SIZE]          = {0};
     static uint8_t lpuart1_tx_buf[LPUART1_TX_BUF_SIZE]          = {0};
-#if defined(BSP_LPUART1_RX_USING_DMA)
-    static uint8_t lpuart1_rx_dma_buf[LPUART1_RX_DMA_BUF_SIZE] = {0};
-#else
-    static uint8_t lpuart1_rx_it_buf                         = {0};  /* 中断模式单字节接收缓冲区 */
-#endif
+    static uint8_t lpuart1_rx_cache_buf[LPUART1_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_LPUART1
 
 /* 平台专有驱动结构体变量定义 */
@@ -182,14 +145,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_UART1
     {
         .Instance = USART1,
-#ifdef BSP_UART1_RX_USING_DMA
-        .rx_dma_buf = uart1_rx_dma_buf,
-        .rx_dma_bufsz = UART1_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-        .rx_it_buf = &uart1_rx_it_buf,
-#endif
+        .rx_cache_buf = uart1_rx_cache_buf,
+        .rx_cache_bufsz = UART1_RX_CACHE_BUF_SIZE,
         .index = UART1_INDEX,
         .name = "uart1",
     },
@@ -198,14 +155,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_UART2
     {
         .Instance = USART2,
-#ifdef BSP_UART2_RX_USING_DMA
-        .rx_dma_buf = uart2_rx_dma_buf,
-        .rx_dma_bufsz = UART2_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-#endif
-        .rx_it_buf = &uart2_rx_it_buf,
+        .rx_cache_buf = uart2_rx_cache_buf,
+        .rx_cache_bufsz = UART2_RX_CACHE_BUF_SIZE,
         .index = UART2_INDEX,
         .name = "uart2",
     },
@@ -214,14 +165,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_UART3
     {
         .Instance = USART3,
-#ifdef BSP_UART3_RX_USING_DMA
-        .rx_dma_buf = uart3_rx_dma_buf,
-        .rx_dma_bufsz = UART3_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-#endif
-        .rx_it_buf = &uart3_rx_it_buf,
+        .rx_cache_buf = uart3_rx_cache_buf,
+        .rx_cache_bufsz = UART3_RX_CACHE_BUF_SIZE,
         .index = UART3_INDEX,
         .name = "uart3",
     },
@@ -230,14 +175,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_UART4
     {
         .Instance = UART4,
-#ifdef BSP_UART4_RX_USING_DMA
-        .rx_dma_buf = uart4_rx_dma_buf,
-        .rx_dma_bufsz = UART4_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-#endif
-        .rx_it_buf = &uart4_rx_it_buf,
+        .rx_cache_buf = uart4_rx_cache_buf,
+        .rx_cache_bufsz = UART4_RX_CACHE_BUF_SIZE,
         .index = UART4_INDEX,
         .name = "uart4",
     },
@@ -245,14 +184,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_UART5
     {
         .Instance = UART5,
-#ifdef BSP_UART5_RX_USING_DMA
-        .rx_dma_buf = uart5_rx_dma_buf,
-        .rx_dma_bufsz = UART5_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-#endif
-        .rx_it_buf = &uart5_rx_it_buf,
+        .rx_cache_buf = uart5_rx_cache_buf,
+        .rx_cache_bufsz = UART5_RX_CACHE_BUF_SIZE,
         .index = UART5_INDEX,
         .name = "uart5",
     },
@@ -260,14 +193,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_UART6
     {
         .Instance = UART6,
-#ifdef BSP_UART6_RX_USING_DMA
-        .rx_dma_buf = uart6_rx_dma_buf,
-        .rx_dma_bufsz = UART6_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-#endif
-        .rx_it_buf = &uart6_rx_it_buf,
+        .rx_cache_buf = uart6_rx_cache_buf,
+        .rx_cache_bufsz = UART6_RX_CACHE_BUF_SIZE,
         .index = UART6_INDEX,
         .name = "uart6",
     },
@@ -275,14 +202,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_UART7
     {
         .Instance = UART7,
-#ifdef BSP_UART7_RX_USING_DMA
-        .rx_dma_buf = uart7_rx_dma_buf,
-        .rx_dma_bufsz = UART7_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-#endif
-        .rx_it_buf = &uart7_rx_it_buf,
+        .rx_cache_buf = uart7_rx_cache_buf,
+        .rx_cache_bufsz = UART7_RX_CACHE_BUF_SIZE,
         .index = UART7_INDEX,
         .name = "uart7",
     },
@@ -290,14 +211,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_UART8
     {
         .Instance = UART8,
-#ifdef BSP_UART8_RX_USING_DMA
-        .rx_dma_buf = uart8_rx_dma_buf,
-        .rx_dma_bufsz = UART8_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-#endif
-        .rx_it_buf = &uart8_rx_it_buf,
+        .rx_cache_buf = uart8_rx_cache_buf,
+        .rx_cache_bufsz = UART8_RX_CACHE_BUF_SIZE,
         .index = UART8_INDEX,
         .name = "uart8",
     },
@@ -305,14 +220,8 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 #ifdef BSP_USING_LPUART1
     {
         .Instance = LPUART1,
-#ifdef BSP_LPUART1_RX_USING_DMA
-        .rx_dma_buf = lpuart1_rx_dma_buf,
-        .rx_dma_bufsz = LPUART1_RX_DMA_BUF_SIZE,
-#else
-        .rx_dma_buf = NULL,
-        .rx_dma_bufsz = 0U,
-#endif
-        .rx_it_buf = &lpuart1_rx_it_buf,
+        .rx_cache_buf = lpuart1_rx_cache_buf,
+        .rx_cache_bufsz = LPUART1_RX_CACHE_BUF_SIZE,
         .index = LPUART1_INDEX,
         .name = "lpuart1",
     },
@@ -1161,15 +1070,11 @@ static int stm32_uart_start_rx(serial_t *port)
     if (stm_uart->huart.hdmarx != NULL) {
         /* 使用DMA模式接收 */
         status = HAL_UARTEx_ReceiveToIdle_DMA(&stm_uart->huart,
-                                             stm_uart->rx_dma_buf,
-                                             stm_uart->rx_dma_bufsz);
+                                             stm_uart->rx_cache_buf,
+                                             stm_uart->rx_cache_bufsz);
     } else {
         /* 使用中断模式接收，单字节接收 */
-        if (stm_uart->rx_it_buf == NULL) {
-            LOG_E("rx_it_buf is NULL");
-            return -EINVAL;
-        }
-        status = HAL_UART_Receive_IT(&stm_uart->huart, stm_uart->rx_it_buf, 1);
+        status = HAL_UARTEx_ReceiveToIdle_IT(&stm_uart->huart, stm_uart->rx_cache_buf, stm_uart->rx_cache_bufsz);
     }
 
     if (status != HAL_OK) {
@@ -1200,10 +1105,8 @@ int bsp_uart_init(void)
     }
 
 #if defined(BSP_USING_UART1)
-#if defined(BSP_UART1_RX_USING_DMA)
-    stm_uart_drv[UART1_INDEX].rx_dma_buf = uart1_rx_dma_buf;
-    stm_uart_drv[UART1_INDEX].rx_dma_bufsz = sizeof(uart1_rx_dma_buf);
-#endif
+    stm_uart_drv[UART1_INDEX].rx_cache_buf = uart1_rx_cache_buf;
+    stm_uart_drv[UART1_INDEX].rx_cache_bufsz = sizeof(uart1_rx_cache_buf);
     serial_dev[UART1_INDEX].rx_buf   = uart1_rx_buf;
     serial_dev[UART1_INDEX].rx_bufsz = sizeof(uart1_rx_buf);
     serial_dev[UART1_INDEX].tx_buf   = uart1_tx_buf;
@@ -1211,10 +1114,8 @@ int bsp_uart_init(void)
 #endif
 
 #if defined(BSP_USING_UART2)
-#if defined(BSP_UART2_RX_USING_DMA)
-    stm_uart_drv[UART2_INDEX].rx_dma_buf = uart2_rx_dma_buf;
-    stm_uart_drv[UART2_INDEX].rx_dma_bufsz = sizeof(uart2_rx_dma_buf);
-#endif
+    stm_uart_drv[UART2_INDEX].rx_cache_buf = uart2_rx_cache_buf;
+    stm_uart_drv[UART2_INDEX].rx_cache_bufsz = sizeof(uart2_rx_cache_buf);
     serial_dev[UART2_INDEX].rx_buf   = uart2_rx_buf;
     serial_dev[UART2_INDEX].rx_bufsz = sizeof(uart2_rx_buf);
     serial_dev[UART2_INDEX].tx_buf   = uart2_tx_buf;
@@ -1222,10 +1123,8 @@ int bsp_uart_init(void)
 #endif
 
 #if defined(BSP_USING_UART3)
-#if defined(BSP_UART3_RX_USING_DMA)
-    stm_uart_drv[UART3_INDEX].rx_dma_buf = uart3_rx_dma_buf;
-    stm_uart_drv[UART3_INDEX].rx_dma_bufsz = sizeof(uart3_rx_dma_buf);
-#endif
+    stm_uart_drv[UART3_INDEX].rx_cache_buf = uart3_rx_cache_buf;
+    stm_uart_drv[UART3_INDEX].rx_cache_bufsz = sizeof(uart3_rx_cache_buf);
     serial_dev[UART3_INDEX].rx_buf   = uart3_rx_buf;
     serial_dev[UART3_INDEX].rx_bufsz = sizeof(uart3_rx_buf);
     serial_dev[UART3_INDEX].tx_buf   = uart3_tx_buf;
@@ -1233,10 +1132,8 @@ int bsp_uart_init(void)
 #endif
 
 #if defined(BSP_USING_UART4)
-#if defined(BSP_UART4_RX_USING_DMA)
-    stm_uart_drv[UART4_INDEX].rx_dma_buf = uart4_rx_dma_buf;
-    stm_uart_drv[UART4_INDEX].rx_dma_bufsz = sizeof(uart4_rx_dma_buf);
-#endif
+    stm_uart_drv[UART4_INDEX].rx_cache_buf = uart4_rx_cache_buf;
+    stm_uart_drv[UART4_INDEX].rx_cache_bufsz = sizeof(uart4_rx_cache_buf);
     serial_dev[UART4_INDEX].rx_buf   = uart4_rx_buf;
     serial_dev[UART4_INDEX].rx_bufsz = sizeof(uart4_rx_buf);
     serial_dev[UART4_INDEX].tx_buf   = uart4_tx_buf;
@@ -1244,10 +1141,8 @@ int bsp_uart_init(void)
 #endif
 
 #if defined(BSP_USING_UART5)
-#if defined(BSP_UART5_RX_USING_DMA)
-    stm_uart_drv[UART5_INDEX].rx_dma_buf = uart5_rx_dma_buf;
-    stm_uart_drv[UART5_INDEX].rx_dma_bufsz = sizeof(uart5_rx_dma_buf);
-#endif
+    stm_uart_drv[UART5_INDEX].rx_cache_buf = uart5_rx_cache_buf;
+    stm_uart_drv[UART5_INDEX].rx_cache_bufsz = sizeof(uart5_rx_cache_buf);
     serial_dev[UART5_INDEX].rx_buf   = uart5_rx_buf;
     serial_dev[UART5_INDEX].rx_bufsz = sizeof(uart5_rx_buf);
     serial_dev[UART5_INDEX].tx_buf   = uart5_tx_buf;
@@ -1255,10 +1150,8 @@ int bsp_uart_init(void)
 #endif
 
 #if defined(BSP_USING_UART6)
-#if defined(BSP_UART6_RX_USING_DMA)
-    stm_uart_drv[UART6_INDEX].rx_dma_buf = uart6_rx_dma_buf;
-    stm_uart_drv[UART6_INDEX].rx_dma_bufsz = sizeof(uart6_rx_dma_buf);
-#endif
+    stm_uart_drv[UART6_INDEX].rx_cache_buf = uart6_rx_cache_buf;
+    stm_uart_drv[UART6_INDEX].rx_cache_bufsz = sizeof(uart6_rx_cache_buf);
     serial_dev[UART6_INDEX].rx_buf   = uart6_rx_buf;
     serial_dev[UART6_INDEX].rx_bufsz = sizeof(uart6_rx_buf);
     serial_dev[UART6_INDEX].tx_buf   = uart6_tx_buf;
@@ -1266,10 +1159,8 @@ int bsp_uart_init(void)
 #endif
 
 #if defined(BSP_USING_UART7)
-#if defined(BSP_UART7_RX_USING_DMA)
-    stm_uart_drv[UART7_INDEX].rx_dma_buf = uart7_rx_dma_buf;
-    stm_uart_drv[UART7_INDEX].rx_dma_bufsz = sizeof(uart7_rx_dma_buf);
-#endif
+    stm_uart_drv[UART7_INDEX].rx_cache_buf = uart7_rx_cache_buf;
+    stm_uart_drv[UART7_INDEX].rx_cache_bufsz = sizeof(uart7_rx_cache_buf);
     serial_dev[UART7_INDEX].rx_buf   = uart7_rx_buf;
     serial_dev[UART7_INDEX].rx_bufsz = sizeof(uart7_rx_buf);
     serial_dev[UART7_INDEX].tx_buf   = uart7_tx_buf;
@@ -1277,10 +1168,8 @@ int bsp_uart_init(void)
 #endif
 
 #if defined(BSP_USING_UART8)
-#if defined(BSP_UART8_RX_USING_DMA)
-    stm_uart_drv[UART8_INDEX].rx_dma_buf = uart8_rx_dma_buf;
-    stm_uart_drv[UART8_INDEX].rx_dma_bufsz = sizeof(uart8_rx_dma_buf);
-#endif
+    stm_uart_drv[UART8_INDEX].rx_cache_buf = uart8_rx_cache_buf;
+    stm_uart_drv[UART8_INDEX].rx_cache_bufsz = sizeof(uart8_rx_cache_buf);
     serial_dev[UART8_INDEX].rx_buf   = uart8_rx_buf;
     serial_dev[UART8_INDEX].rx_bufsz = sizeof(uart8_rx_buf);
     serial_dev[UART8_INDEX].tx_buf   = uart8_tx_buf;
@@ -1288,10 +1177,8 @@ int bsp_uart_init(void)
 #endif
 
 #if defined(BSP_USING_LPUART1)
-#if defined(BSP_LPUART1_RX_USING_DMA)
-    stm_uart_drv[LPUART1_INDEX].rx_dma_buf = lpuart1_rx_dma_buf;
-    stm_uart_drv[LPUART1_INDEX].rx_dma_bufsz = sizeof(lpuart1_rx_dma_buf);
-#endif
+    stm_uart_drv[LPUART1_INDEX].rx_cache_buf = lpuart1_rx_cache_buf;
+    stm_uart_drv[LPUART1_INDEX].rx_cache_bufsz = sizeof(lpuart1_rx_cache_buf);
     serial_dev[LPUART1_INDEX].rx_buf   = lpuart1_rx_buf;
     serial_dev[LPUART1_INDEX].rx_bufsz = sizeof(lpuart1_rx_buf);
     serial_dev[LPUART1_INDEX].tx_buf   = lpuart1_tx_buf;
@@ -1317,27 +1204,6 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 /**
-  * @brief  Rx Transfer completed callback (for interrupt mode)
-  * @param  huart: Pointer to UART handle
-  * @retval None
-  */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
-    serial_t *port = &serial_dev[stm_uart->index];
-
-    if (!port || !stm_uart->rx_it_buf) {
-        return;
-    }
-
-    /* 将接收到的单字节数据放入FIFO */
-    hw_serial_rx_done_isr(port, stm_uart->rx_it_buf, 1);
-
-    /* 重新启动单字节接收 */
-    (void)HAL_UART_Receive_IT(&stm_uart->huart, stm_uart->rx_it_buf, 1);
-}
-
-/**
   * @brief  Reception Event Callback for DMA mode
   * @param  huart: UART handle
   * @param  Size: Number of data available in application reception buffer
@@ -1358,7 +1224,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         // 半满中断 - 处理前半部分数据
         process_size = Size - stm_uart->last_pos;  // 计算需要处理的数据量
         if (process_size > 0) {
-            hw_serial_rx_done_isr(port, stm_uart->rx_dma_buf + stm_uart->last_pos, process_size);
+            hw_serial_rx_done_isr(port, stm_uart->rx_cache_buf + stm_uart->last_pos, process_size);
             stm_uart->last_pos = Size;  // 更新已处理位置
         }
     }
@@ -1368,7 +1234,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         // 传输完成或空闲中断 - 处理剩余数据
         process_size = Size - stm_uart->last_pos;  // 计算剩余的数据量
         if (process_size > 0) {
-            hw_serial_rx_done_isr(port, stm_uart->rx_dma_buf + stm_uart->last_pos, process_size);
+            hw_serial_rx_done_isr(port, stm_uart->rx_cache_buf + stm_uart->last_pos, process_size);
         }
 
         // 重置位置计数器并重新启动接收
