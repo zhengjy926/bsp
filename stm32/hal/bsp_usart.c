@@ -769,10 +769,6 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
     RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 #endif
 
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-
     switch (uartHandle->index) {
 #ifdef BSP_USING_UART1
     case UART1_INDEX:
@@ -787,17 +783,28 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
 #endif
         __HAL_RCC_USART1_CLK_ENABLE();
     
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+        GPIO_InitStruct.Pin = BSP_UART1_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
 #endif
-        GPIO_InitStruct.Pin = BSP_UART1_TX_PIN;
         HAL_GPIO_Init(BSP_UART1_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_UART1_RX_PIN;
         HAL_GPIO_Init(BSP_UART1_RX_PORT, &GPIO_InitStruct);
-        HAL_NVIC_SetPriority(USART1_IRQn, 0, BSP_UART1_IRQ_PRIORITY);
+        
+        HAL_NVIC_SetPriority(USART1_IRQn, BSP_UART1_IRQ_PRIORITY, 0);
         HAL_NVIC_EnableIRQ(USART1_IRQn);
         break;
-#endif
+#endif /* BSP_USING_UART1 */
 
 #ifdef BSP_USING_UART2
     case UART2_INDEX:
@@ -811,14 +818,25 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         }
 #endif
         __HAL_RCC_USART2_CLK_ENABLE();
-
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+    
+        GPIO_InitStruct.Pin = BSP_UART2_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
 #endif
-        GPIO_InitStruct.Pin = BSP_UART2_TX_PIN;
         HAL_GPIO_Init(BSP_UART2_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_UART2_RX_PIN;
         HAL_GPIO_Init(BSP_UART2_RX_PORT, &GPIO_InitStruct);
+
         HAL_NVIC_SetPriority(USART2_IRQn, 0, BSP_UART2_IRQ_PRIORITY);
         HAL_NVIC_EnableIRQ(USART2_IRQn);
         break;
@@ -836,14 +854,25 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         }
 #endif
         __HAL_RCC_USART3_CLK_ENABLE();
-
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+    
+        GPIO_InitStruct.Pin = BSP_UART3_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
 #endif
-        GPIO_InitStruct.Pin = BSP_UART3_TX_PIN;
         HAL_GPIO_Init(BSP_UART3_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_UART3_RX_PIN;
         HAL_GPIO_Init(BSP_UART3_RX_PORT, &GPIO_InitStruct);
+
         HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(USART3_IRQn);
         break;
@@ -861,14 +890,25 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         }
 #endif
         __HAL_RCC_UART4_CLK_ENABLE();
-
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+    
+        GPIO_InitStruct.Pin = BSP_UART4_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF8_UART4;
 #endif
-        GPIO_InitStruct.Pin = BSP_UART4_TX_PIN;
         HAL_GPIO_Init(BSP_UART4_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_UART4_RX_PIN;
         HAL_GPIO_Init(BSP_UART4_RX_PORT, &GPIO_InitStruct);
+
         HAL_NVIC_SetPriority(UART4_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(UART4_IRQn);
         break;
@@ -886,14 +926,25 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         }
 #endif
         __HAL_RCC_UART5_CLK_ENABLE();
-
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+    
+        GPIO_InitStruct.Pin = BSP_UART5_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF8_UART5;
 #endif
-        GPIO_InitStruct.Pin = BSP_UART5_TX_PIN;
         HAL_GPIO_Init(BSP_UART5_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_UART5_RX_PIN;
         HAL_GPIO_Init(BSP_UART5_RX_PORT, &GPIO_InitStruct);
+
         HAL_NVIC_SetPriority(UART5_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(UART5_IRQn);
         break;
@@ -911,14 +962,25 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         }
 #endif
         __HAL_RCC_USART6_CLK_ENABLE();
-
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+    
+        GPIO_InitStruct.Pin = BSP_UART6_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
 #endif
-        GPIO_InitStruct.Pin = BSP_UART6_TX_PIN;
         HAL_GPIO_Init(BSP_UART6_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_UART6_RX_PIN;
         HAL_GPIO_Init(BSP_UART6_RX_PORT, &GPIO_InitStruct);
+
         HAL_NVIC_SetPriority(USART6_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(USART6_IRQn);
         break;
@@ -936,14 +998,25 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         }
 #endif
         __HAL_RCC_UART7_CLK_ENABLE();
-
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+    
+        GPIO_InitStruct.Pin = BSP_UART7_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF8_UART7;
 #endif
-        GPIO_InitStruct.Pin = BSP_UART7_TX_PIN;
         HAL_GPIO_Init(BSP_UART7_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_UART7_RX_PIN;
         HAL_GPIO_Init(BSP_UART7_RX_PORT, &GPIO_InitStruct);
+
         HAL_NVIC_SetPriority(UART7_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(UART7_IRQn);
         break;
@@ -961,14 +1034,25 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         }
 #endif
         __HAL_RCC_UART8_CLK_ENABLE();
-
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+    
+        GPIO_InitStruct.Pin = BSP_UART8_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF8_UART8;
 #endif
-        GPIO_InitStruct.Pin = BSP_UART8_TX_PIN;
         HAL_GPIO_Init(BSP_UART8_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_UART8_RX_PIN;
         HAL_GPIO_Init(BSP_UART8_RX_PORT, &GPIO_InitStruct);
+        
         HAL_NVIC_SetPriority(UART8_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(UART8_IRQn);
         break;
@@ -986,14 +1070,25 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         }
 #endif
         __HAL_RCC_LPUART1_CLK_ENABLE();
-
-#if defined(STM32F4) || defined(STM32G4) || defined(STM32H7)
+    
+        GPIO_InitStruct.Pin = BSP_LPUART1_TX_PIN;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifndef STM32F1
         GPIO_InitStruct.Alternate = GPIO_AF8_LPUART1;
 #endif
-        GPIO_InitStruct.Pin = BSP_LPUART1_TX_PIN;
         HAL_GPIO_Init(BSP_LPUART1_TX_PORT, &GPIO_InitStruct);
+
+        
+#if defined(STM32F1)
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#else
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+#endif
         GPIO_InitStruct.Pin = BSP_LPUART1_RX_PIN;
         HAL_GPIO_Init(BSP_LPUART1_RX_PORT, &GPIO_InitStruct);
+
         HAL_NVIC_SetPriority(LPUART1_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(LPUART1_IRQn);
         break;
