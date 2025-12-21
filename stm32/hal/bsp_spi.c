@@ -3,478 +3,611 @@
   * @file        : bsp_spi.c
   * @author      : ZJY
   * @version     : V1.0
-  * @date        : 2025-10-16
-  * @brief       : STM32 SPI驱动实现
+  * @date        : 2025-01-XX
+  * @brief       : STM32 SPI BSP驱动实现 (LL库实现)
   * @attention   : None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.Initial version
+  *         V1.0 : 1. Complete refactoring with LL library
+  *                2. Support new SPI framework interface
   *
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
+
 #include "bsp_spi.h"
-#include "bsp_dma.h"
 #include "spi.h"
-#include "bsp_conf.h"
 #include "gpio.h"
-#include <stdlib.h>
-#include <assert.h>
+#include "errno-base.h"
+#include "bsp_conf.h"
+#include "system_stm32f1xx.h"  /* For SystemCoreClock and APBPrescTable */
 
-//#define  DEBUG_TAG                  "stm32_spi"
-//#define  FILE_DEBUG_LEVEL           3
-//#define  FILE_ASSERT_ENABLED        1
-//#include "debug.h"
+#define  LOG_TAG             "bsp_spi"
+#define  LOG_LVL             4
+#include "log.h"
 
-#if defined(HAL_SPI_MODULE_ENABLED)
 /* Private typedef -----------------------------------------------------------*/
-struct stm32_spi {
-    SPI_HandleTypeDef hspi;
-    SPI_TypeDef *instance;
-    char *name;
-    IRQn_Type irq_type;
-    struct dma_config rx_dma;
-    struct dma_config tx_dma;
-    uint8_t using_rx_dma;
-    uint8_t using_tx_dma;
+
+#if defined(BSP_USING_SPI1) || defined(BSP_USING_SPI2) || defined(BSP_USING_SPI3)
+
+/**
+ * @brief STM32 SPI hardware data structure
+ */
+struct stm32_spi_hw {
+    SPI_TypeDef *instance;          /**< SPI peripheral instance */
+    IRQn_Type irq_type;             /**< SPI interrupt type */
+    uint32_t pclk_freq;              /**< Peripheral clock frequency */
+    uint32_t max_speed_hz;           /**< Maximum SPI speed */
+    const char *name;                /**< Controller name */
 };
 
-/* Private define ------------------------------------------------------------*/
-#define SPI_USING_RX_DMA_FLAG   (1<<0)
-#define SPI_USING_TX_DMA_FLAG   (1<<1)
-/* Private macro -------------------------------------------------------------*/
-
-/* Private function prototypes -----------------------------------------------*/
-
-/* Private variables ---------------------------------------------------------*/
-/* Exported functions --------------------------------------------------------*/
-
-/* Private functions ---------------------------------------------------------*/
-#if defined(BSP_USING_SPI1) || defined(BSP_USING_SPI2) || defined(BSP_USING_SPI3) \
-    || defined(BSP_USING_SPI4) || defined(BSP_USING_SPI5) || defined(BSP_USING_SPI6)
 enum
 {
 #ifdef BSP_USING_SPI1
     SPI1_INDEX,
 #endif
+
 #ifdef BSP_USING_SPI2
     SPI2_INDEX,
 #endif
+
 #ifdef BSP_USING_SPI3
     SPI3_INDEX,
 #endif
-#ifdef BSP_USING_SPI4
-    SPI4_INDEX,
-#endif
-#ifdef BSP_USING_SPI5
-    SPI5_INDEX,
-#endif
-#ifdef BSP_USING_SPI6
-    SPI6_INDEX,
-#endif
+    SPI_INDEX_MAX,
 };
 
-static struct stm32_spi stm_spi_drv[] =
-{
+/* Private define ------------------------------------------------------------*/
+
+/* STM32F1 SPI Maximum Speed Limits (from datasheet) */
+/* According to STM32F1 datasheet, SPI maximum speed is typically 18MHz */
+/* However, the actual limit depends on the specific chip variant */
+/* For safety, we use a conservative value: 18MHz */
+#define STM32_SPI_MAX_SPEED_HZ          (18000000U)  /* 18 MHz - datasheet limit */
+
+/* Private macro -------------------------------------------------------------*/
+
+/* Private variables ---------------------------------------------------------*/
+
+/* SPI hardware data array */
+static struct stm32_spi_hw stm32_spi_hw[SPI_INDEX_MAX] = {
 #ifdef BSP_USING_SPI1
     {
         .instance = SPI1,
         .irq_type = SPI1_IRQn,
-        .hdma_tx = &hdma_spi1_tx,
-        .hdma_rx = &hdma_spi1_rx,
-        .dma_tx_channel = DMA_CHANNEL_4,
-        .dma_rx_channel = DMA_CHANNEL_4
+        .pclk_freq = 0U,  /* Will be calculated in init */
+        .max_speed_hz = 0U,
+        .name = "spi1"
     },
 #endif
-
 #ifdef BSP_USING_SPI2
     {
         .instance = SPI2,
         .irq_type = SPI2_IRQn,
-        .hdma_tx = &hdma_spi2_tx,
-        .hdma_rx = &hdma_spi2_rx,
-        .dma_tx_channel = DMA_CHANNEL_4,
-        .dma_rx_channel = DMA_CHANNEL_4
+        .pclk_freq = 0U,
+        .max_speed_hz = 0U,
+        .name = "spi2"
     },
 #endif
-
 #ifdef BSP_USING_SPI3
     {
         .instance = SPI3,
         .irq_type = SPI3_IRQn,
-        .hdma_tx = &hdma_spi3_tx,
-        .hdma_rx = &hdma_spi3_rx,
-        .dma_tx_channel = DMA_CHANNEL_4,
-        .dma_rx_channel = DMA_CHANNEL_4
-    },
-#endif
-
-#ifdef BSP_USING_SPI4
-    {
-        .instance = SPI4,
-        .irq_type = SPI4_IRQn,
-        .name     = "spi4",
-        .using_rx_dma = 1,
-        .using_tx_dma = 1,
-        .rx_dma = {
-            .Instance = DMA2_Stream0,
-            .channel = DMA_CHANNEL_4,
-            .dma_irq = DMA2_Stream0_IRQn
-        },
-        .tx_dma = {
-            .Instance = DMA2_Stream1,
-            .channel = DMA_CHANNEL_4,
-            .dma_irq = DMA2_Stream1_IRQn
-        }
-    },
-#endif
-
-#ifdef BSP_USING_SPI5
-    {
-        .instance = SPI5,
-        .irq_type = SPI5_IRQn,
-        .name     = "spi5",
-        .using_rx_dma = 1,
-        .using_tx_dma = 1,
-        .rx_dma = {
-            .Instance = DMA2_Stream3,
-            .channel = DMA_CHANNEL_2,
-            .dma_irq = DMA2_Stream3_IRQn
-        },
-        .tx_dma = {
-            .Instance = DMA2_Stream4,
-            .channel = DMA_CHANNEL_2,
-            .dma_irq = DMA2_Stream4_IRQn
-        }
-    },
-#endif
-
-#ifdef BSP_USING_SPI6
-    {
-        .instance = SPI6,
-        .irq_type = SPI6_IRQn,
-        .hdma_tx = &hdma_spi6_tx,
-        .hdma_rx = &hdma_spi6_rx,
-        .dma_tx_channel = DMA_CHANNEL_4,
-        .dma_rx_channel = DMA_CHANNEL_4
+        .pclk_freq = 0U,
+        .max_speed_hz = 0U,
+        .name = "spi3"
     },
 #endif
 };
 
-static int stm32_spi_dma_init(struct stm32_spi *spi)
+/* SPI controller array */
+static struct spi_controller stm32_spi_controller[sizeof(stm32_spi_hw) / sizeof(stm32_spi_hw[0])];
+
+/* Private function prototypes -----------------------------------------------*/
+static int stm32_spi_setup(struct spi_controller *ctrl, struct spi_device *dev);
+static void stm32_spi_set_cs(struct spi_controller *ctrl, struct spi_device *dev, uint8_t enable);
+static ssize_t stm32_spi_transfer_one(struct spi_controller *ctrl, 
+                                       struct spi_device *dev,
+                                       struct spi_transfer *transfer);
+static int stm32_spi_gpio_init(SPI_TypeDef *spi_instance);
+static uint32_t stm32_spi_calculate_prescaler(uint32_t pclk_freq, uint32_t max_speed_hz, uint32_t *actual_speed);
+static uint32_t stm32_spi_get_pclk_freq(SPI_TypeDef *spi_instance);
+
+/* Exported functions --------------------------------------------------------*/
+
+/* Private functions ---------------------------------------------------------*/
+
+/**
+ * @brief Calculate SPI prescaler and actual speed
+ * @param pclk_freq Peripheral clock frequency
+ * @param max_speed_hz Maximum requested speed
+ * @param actual_speed Output actual speed
+ * @return Prescaler value (LL_SPI_BAUDRATEPRESCALER_xxx)
+ */
+static uint32_t stm32_spi_calculate_prescaler(uint32_t pclk_freq, uint32_t max_speed_hz, uint32_t *actual_speed)
 {
-    if (!spi->using_rx_dma && !spi->using_tx_dma)
-        return 0;
-
-    /* Enable DMA clock */
-    __HAL_RCC_DMA2_CLK_ENABLE();
-
-    /* Configure RX DMA if needed */
-    if (spi->using_rx_dma) {
-        /* Configure DMA handle */
-        spi->rx_dma.hdma.Instance = spi->rx_dma.Instance;
-        spi->rx_dma.hdma.Init.Channel = spi->rx_dma.channel;
-        spi->rx_dma.hdma.Init.Direction = DMA_PERIPH_TO_MEMORY;
-        spi->rx_dma.hdma.Init.PeriphInc = DMA_PINC_DISABLE;
-        spi->rx_dma.hdma.Init.MemInc = DMA_MINC_ENABLE;
-        spi->rx_dma.hdma.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-        spi->rx_dma.hdma.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-        spi->rx_dma.hdma.Init.Mode = DMA_NORMAL;
-        spi->rx_dma.hdma.Init.Priority = DMA_PRIORITY_LOW;
-        spi->rx_dma.hdma.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-
-        if (HAL_DMA_Init(&spi->rx_dma.hdma) != HAL_OK)
-            return -EIO;
-
-        __HAL_LINKDMA(&spi->hspi, hdmarx, spi->rx_dma.hdma);
-
-        /* Enable DMA IRQ */
-        HAL_NVIC_SetPriority(spi->rx_dma.dma_irq, 0, 0);
-        HAL_NVIC_EnableIRQ(spi->rx_dma.dma_irq);
-    }
-
-    /* Configure TX DMA if needed */
-    if (spi->using_tx_dma) {
-        /* Configure DMA handle */
-        spi->tx_dma.hdma.Instance = spi->tx_dma.Instance;
-        spi->tx_dma.hdma.Init.Channel = spi->tx_dma.channel;
-        spi->tx_dma.hdma.Init.Direction = DMA_MEMORY_TO_PERIPH;
-        spi->tx_dma.hdma.Init.PeriphInc = DMA_PINC_DISABLE;
-        spi->tx_dma.hdma.Init.MemInc = DMA_MINC_ENABLE;
-        spi->tx_dma.hdma.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-        spi->tx_dma.hdma.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-        spi->tx_dma.hdma.Init.Mode = DMA_NORMAL;
-        spi->tx_dma.hdma.Init.Priority = DMA_PRIORITY_LOW;
-        spi->tx_dma.hdma.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-
-        if (HAL_DMA_Init(&spi->tx_dma.hdma) != HAL_OK)
-            return -EIO;
-
-        __HAL_LINKDMA(&spi->hspi, hdmatx, spi->tx_dma.hdma);
-
-        /* Enable DMA IRQ */
-        HAL_NVIC_SetPriority(spi->tx_dma.dma_irq, 0, 0);
-        HAL_NVIC_EnableIRQ(spi->tx_dma.dma_irq);
-    }
-
-    return 0;
-}
-
-static int stm32_spi_gpio_init(struct stm32_spi *spi)
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-    if(spi->instance == SPI2)
-    {
-        /* SPI2 clock enable */
-        __HAL_RCC_SPI2_CLK_ENABLE();
+    uint32_t prescaler;
+    uint32_t div;
+    
+    if ((pclk_freq == 0U) || (max_speed_hz == 0U) || (actual_speed == NULL)) {
+        return LL_SPI_BAUDRATEPRESCALER_DIV2;
     }
     
-    if(spi->instance == SPI4)
-    {
-        /* SPI2 clock enable */
-        __HAL_RCC_SPI4_CLK_ENABLE();
-
-        /* SPI2 GPIO Configuration */
-        GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_5|GPIO_PIN_6;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Pull = GPIO_NOPULL;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-        GPIO_InitStruct.Alternate = GPIO_AF5_SPI4;
-        HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-        
-        HAL_NVIC_SetPriority(spi->irq_type, 0, 0);
-        HAL_NVIC_EnableIRQ(spi->irq_type);
-        
-        return 0;
-    }
+    /* Calculate division factor */
+    div = (pclk_freq + max_speed_hz - 1U) / max_speed_hz;
     
-    if (spi->instance == SPI5)
-    {
-        /* SPI5 clock enable */
-        __HAL_RCC_SPI5_CLK_ENABLE();
-        
-        GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Pull = GPIO_NOPULL;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-        GPIO_InitStruct.Alternate = GPIO_AF5_SPI5;
-        HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
-        
-        /* SPI5 interrupt Init */
-        HAL_NVIC_SetPriority(spi->irq_type, 0, 0);
-        HAL_NVIC_EnableIRQ(spi->irq_type);
-        
-        return 0;
-    }
-    
-    return -EIO;
-}
-
-static int stm32_spi_configure(struct spi_device *dev)
-{
-    struct spi_bus *bus;
-    struct stm32_spi *spi;
-    SPI_HandleTypeDef *handle;
-    
-    if (!dev || !dev->bus || !dev->bus->hw_data)
-        return -EINVAL;
-    
-    bus = dev->bus;
-    spi = bus->hw_data;
-    handle = &spi->hspi;
-    
-    handle->Instance = spi->instance;
-    handle->Init.Mode = SPI_MODE_MASTER;
-    handle->Init.Direction = (dev->mode & SPI_MODE_3WIRE) ? 
-                            SPI_DIRECTION_1LINE : SPI_DIRECTION_2LINES;
-    handle->Init.DataSize = (dev->data_width == 8) ? 
-                            SPI_DATASIZE_8BIT : SPI_DATASIZE_16BIT;
-    handle->Init.CLKPolarity = (dev->mode & SPI_CPOL) ? 
-                            SPI_POLARITY_HIGH : SPI_POLARITY_LOW;
-    handle->Init.CLKPhase = (dev->mode & SPI_CPHA) ? 
-                            SPI_PHASE_2EDGE : SPI_PHASE_1EDGE;
-    handle->Init.NSS = (dev->mode & SPI_MODE_HW_CS) ? 
-                            SPI_NSS_HARD_OUTPUT : SPI_NSS_SOFT;
-    
-    /* Calculate baudrate prescaler */
-    if (dev->max_hz >= bus->max_hz) {
-        handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-        bus->actual_hz = bus->max_hz;
+    /* Select appropriate prescaler */
+    if (div <= 2U) {
+        prescaler = LL_SPI_BAUDRATEPRESCALER_DIV2;
+        *actual_speed = pclk_freq >> 1U;
+    } else if (div <= 4U) {
+        prescaler = LL_SPI_BAUDRATEPRESCALER_DIV4;
+        *actual_speed = pclk_freq >> 2U;
+    } else if (div <= 8U) {
+        prescaler = LL_SPI_BAUDRATEPRESCALER_DIV8;
+        *actual_speed = pclk_freq >> 3U;
+    } else if (div <= 16U) {
+        prescaler = LL_SPI_BAUDRATEPRESCALER_DIV16;
+        *actual_speed = pclk_freq >> 4U;
+    } else if (div <= 32U) {
+        prescaler = LL_SPI_BAUDRATEPRESCALER_DIV32;
+        *actual_speed = pclk_freq >> 5U;
+    } else if (div <= 64U) {
+        prescaler = LL_SPI_BAUDRATEPRESCALER_DIV64;
+        *actual_speed = pclk_freq >> 6U;
+    } else if (div <= 128U) {
+        prescaler = LL_SPI_BAUDRATEPRESCALER_DIV128;
+        *actual_speed = pclk_freq >> 7U;
     } else {
-        uint32_t div = (bus->max_hz + dev->max_hz - 1) / dev->max_hz;
-        if (div <= 2) {
-            handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
-            bus->actual_hz = bus->max_hz >> 1;
-        } else if (div <= 4) {
-            handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
-            bus->actual_hz = bus->max_hz >> 2;
-        } else if (div <= 8) {
-            handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
-            bus->actual_hz = bus->max_hz >> 3;
-        } else if (div <= 16) {
-            handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
-            bus->actual_hz = bus->max_hz >> 4;
-        } else if (div <= 32) {
-            handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
-            bus->actual_hz = bus->max_hz >> 5;
-        } else if (div <= 64) {
-            handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
-            bus->actual_hz = bus->max_hz >> 6;
-        } else {
-            handle->Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
-            bus->actual_hz = bus->max_hz >> 7;
-        }
+        prescaler = LL_SPI_BAUDRATEPRESCALER_DIV256;
+        *actual_speed = pclk_freq >> 8U;
     }
     
-    handle->Init.FirstBit = (dev->mode & SPI_MODE_MSB) ? 
-                            SPI_FIRSTBIT_MSB : SPI_FIRSTBIT_LSB;
-    handle->Init.TIMode = SPI_TIMODE_DISABLE;
-    handle->Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-    handle->Init.CRCPolynomial = 10;
-
-    return (HAL_SPI_Init(handle) == HAL_OK) ? 0 : -EIO;
+    return prescaler;
 }
 
 /**
- * @brief  设置SPI片选信号
- * @param  spi: SPI设备结构体指针
- * @param  enable: true-使能，false-禁止
+ * @brief Initialize SPI GPIO pins
+ * @param spi_instance SPI peripheral instance
+ * @return 0 on success, error code on failure
  */
-static void stm32_spi_set_cs(struct spi_device *dev, uint8_t enable)
+static int stm32_spi_gpio_init(SPI_TypeDef *spi_instance)
 {
-    if (dev && dev->cs_pin)
-        gpio_write(dev->cs_pin, enable ? 0 : 1);
-}
-
-static ssize_t stm32_spi_xfer(struct spi_device *dev, struct spi_message *message)
-{
-    HAL_StatusTypeDef state;
-    struct spi_bus *bus;
-    struct stm32_spi *spi;
-    SPI_HandleTypeDef *handle;
-    size_t total_len = 0;
+    LL_GPIO_InitTypeDef gpio_init = {0};
+    GPIO_TypeDef *gpio_port;
+    uint32_t gpio_pins;
     
-    if (!dev || !dev->bus || !message)
+    if (spi_instance == NULL) {
         return -EINVAL;
-        
-    bus = dev->bus;
-    spi = bus->hw_data;
-    handle = &spi->hspi;
-    
-    const uint8_t *tx_buf = message->send_buf;
-    uint8_t *rx_buf = message->recv_buf;
-    size_t len = message->length;
-    
-    while (len > 0)
-    {
-        size_t chunk_len = (len > 65535) ? 65535 : len;
-        
-        if (tx_buf && rx_buf)
-            state = HAL_SPI_TransmitReceive_DMA(handle, (uint8_t*)tx_buf, rx_buf, chunk_len);
-        else if (tx_buf)
-            state = HAL_SPI_Transmit_DMA(handle, (uint8_t*)tx_buf, chunk_len);
-        else {
-            state = HAL_SPI_Receive_DMA(handle, rx_buf, chunk_len);
-        }
-        
-        if (state != HAL_OK) {
-            handle->State = HAL_SPI_STATE_READY;
-            return -EIO;
-        }
-        
-        while (HAL_SPI_GetState(handle) != HAL_SPI_STATE_READY);
-        
-        if (tx_buf) tx_buf += chunk_len;
-        if (rx_buf) rx_buf += chunk_len;
-        len -= chunk_len;
-        total_len += chunk_len;
     }
     
-    return total_len;
+#if defined(BSP_USING_SPI1)
+    if (spi_instance == SPI1) {
+        /* Enable SPI1 and GPIOA clocks */
+        LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
+        
+        /* Configure SPI1 pins */
+        gpio_init.Pin = BSP_SPI1_SCK_PIN;
+        gpio_init.Mode = LL_GPIO_MODE_ALTERNATE;
+        gpio_init.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+        gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+        LL_GPIO_Init(BSP_SPI1_SCK_PORT, &gpio_init);
+
+        gpio_init.Pin = BSP_SPI1_MOSI_PIN;
+        LL_GPIO_Init(BSP_SPI1_MOSI_PORT, &gpio_init);
+
+        gpio_init.Pin = BSP_SPI1_MISO_PIN;
+        gpio_init.Mode = LL_GPIO_MODE_FLOATING;
+        LL_GPIO_Init(BSP_SPI1_MISO_PORT, &gpio_init);
+        
+        return 0;
+    }
+#endif /* BSP_USING_SPI1 */
+    
+#if defined(BSP_USING_SPI2)
+    if (spi_instance == SPI2) {
+        /* Enable SPI2 and GPIOB clocks */
+        LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_SPI2);
+        
+        /* Configure SPI2 pins */
+        gpio_init.Pin = BSP_SPI2_SCK_PIN;
+        gpio_init.Mode = LL_GPIO_MODE_ALTERNATE;
+        gpio_init.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+        gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+        LL_GPIO_Init(BSP_SPI2_SCK_PORT, &gpio_init);
+
+        gpio_init.Pin = BSP_SPI2_MOSI_PIN;
+        LL_GPIO_Init(BSP_SPI2_MOSI_PORT, &gpio_init);
+
+        gpio_init.Pin = BSP_SPI2_MISO_PIN;
+        gpio_init.Mode = LL_GPIO_MODE_FLOATING;
+        LL_GPIO_Init(BSP_SPI2_MISO_PORT, &gpio_init);
+
+        return 0;
+    }
+#endif /* BSP_USING_SPI2 */
+    
+#if defined(BSP_USING_SPI3)
+    if (spi_instance == SPI3) {
+        /* Enable SPI3, GPIOB, GPIOA and AFIO clocks */
+        LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_SPI3);
+        
+        /* Configure SPI3 pins */
+        gpio_init.Pin = BSP_SPI3_SCK_PIN;
+        gpio_init.Mode = LL_GPIO_MODE_ALTERNATE;
+        gpio_init.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+        gpio_init.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+        LL_GPIO_Init(BSP_SPI3_SCK_PORT, &gpio_init);
+
+        gpio_init.Pin = BSP_SPI3_MOSI_PIN;
+        LL_GPIO_Init(BSP_SPI3_MOSI_PORT, &gpio_init);
+
+        gpio_init.Pin = BSP_SPI3_MISO_PIN;
+        gpio_init.Mode = LL_GPIO_MODE_FLOATING;
+        LL_GPIO_Init(BSP_SPI3_MISO_PORT, &gpio_init);
+
+        return 0;
+    }
+#endif /* BSP_USING_SPI3 */
+    
+    return -EINVAL;
 }
 
-static const struct spi_ops stm_spi_ops = {
-    .configure = stm32_spi_configure,
-    .set_cs = stm32_spi_set_cs,
-    .xfer = stm32_spi_xfer,
-};
-
-static struct spi_bus spi_bus[sizeof(stm_spi_drv)/sizeof(stm_spi_drv[0])];
-
-int bsp_spi_init(void)
+/**
+ * @brief Setup SPI controller (spi_controller_ops implementation)
+ * @param ctrl Controller pointer
+ * @param dev Device pointer
+ * @return 0 on success, error code on failure
+ */
+static int stm32_spi_setup(struct spi_controller *ctrl, struct spi_device *dev)
 {
-    int ret = 0;
+    struct stm32_spi_hw *hw;
+    LL_SPI_InitTypeDef spi_init = {0};
+    uint32_t prescaler;
+    uint32_t actual_speed;
+    uint32_t polarity;
+    uint32_t phase;
+    uint32_t bit_order;
+    uint32_t transfer_dir;
     
-    for (uint8_t i = 0; i < sizeof(stm_spi_drv)/sizeof(stm_spi_drv[0]); i++)
-    {
-        spi_bus[i].hw_data = &stm_spi_drv[i];
-        spi_bus[i].ops = &stm_spi_ops;
-        
-        if (stm_spi_drv[i].instance == SPI1 || stm_spi_drv[i].instance == SPI4 || \
-            stm_spi_drv[i].instance == SPI5 || stm_spi_drv[i].instance == SPI6) {
-            spi_bus[i].max_hz = SystemCoreClock >> 1;
-        } else {
-            spi_bus[i].max_hz = SystemCoreClock >> 2;
-        }
-
-        /* Initialize GPIO for each SPI */
-        ret = stm32_spi_gpio_init(&stm_spi_drv[i]);
-        if (ret != 0)
-            return ret;
-
-        /* Initialize DMA if needed */
-        ret = stm32_spi_dma_init(&stm_spi_drv[i]);
-        if (ret != 0)
-            return ret;
-
-        ret = spi_bus_register(&spi_bus[i], stm_spi_drv[i].name, &stm_spi_ops);
-        assert(ret == 0);
+    if ((ctrl == NULL) || (dev == NULL) || (ctrl->priv == NULL)) {
+        return -EINVAL;
     }
+    
+    hw = (struct stm32_spi_hw *)ctrl->priv;
+    
+    /* Disable SPI before configuration */
+    if (LL_SPI_IsEnabled(hw->instance) != 0U) {
+        LL_SPI_Disable(hw->instance);
+        /* Wait for SPI to be disabled */
+        while (LL_SPI_IsEnabled(hw->instance) != 0U) {
+            /* Wait */
+        }
+    }
+    
+    /* Configure transfer direction */
+    if ((dev->mode & SPI_MODE_3WIRE) != 0U) {
+        transfer_dir = LL_SPI_HALF_DUPLEX_TX;  /* 3-wire mode */
+    } else {
+        transfer_dir = LL_SPI_FULL_DUPLEX;     /* 4-wire mode */
+    }
+    
+    /* Configure clock polarity */
+    if ((dev->mode & SPI_CPOL) != 0U) {
+        polarity = LL_SPI_POLARITY_HIGH;
+    } else {
+        polarity = LL_SPI_POLARITY_LOW;
+    }
+    
+    /* Configure clock phase */
+    if ((dev->mode & SPI_CPHA) != 0U) {
+        phase = LL_SPI_PHASE_2EDGE;
+    } else {
+        phase = LL_SPI_PHASE_1EDGE;
+    }
+    
+    /* Configure bit order */
+    if ((dev->mode & SPI_MODE_MSB) != 0U) {
+        bit_order = LL_SPI_MSB_FIRST;
+    } else {
+        bit_order = LL_SPI_LSB_FIRST;
+    }
+    
+    /* Limit requested speed to hardware maximum */
+    uint32_t requested_speed = dev->max_speed_hz;
+    if (requested_speed > hw->max_speed_hz) {
+        LOG_W("SPI%s: Requested speed %lu Hz exceeds maximum %lu Hz, limiting to maximum",
+              hw->name, requested_speed, hw->max_speed_hz);
+        requested_speed = hw->max_speed_hz;
+    }
+    
+    /* Calculate prescaler */
+    prescaler = stm32_spi_calculate_prescaler(hw->pclk_freq, requested_speed, &actual_speed);
+    
+    /* Verify actual speed does not exceed hardware limit */
+    if (actual_speed > hw->max_speed_hz) {
+        LOG_E("SPI%s: Calculated speed %lu Hz exceeds hardware limit %lu Hz",
+              hw->name, actual_speed, hw->max_speed_hz);
+        return -EINVAL;
+    }
+    
+    /* Fill SPI init structure */
+    LL_SPI_StructInit(&spi_init);
+    
+    spi_init.TransferDirection = transfer_dir;
+    spi_init.Mode = LL_SPI_MODE_MASTER;
+    spi_init.DataWidth = (dev->bits_per_word == 16U) ? 
+                        LL_SPI_DATAWIDTH_16BIT : LL_SPI_DATAWIDTH_8BIT;
+    spi_init.ClockPolarity = polarity;
+    spi_init.ClockPhase = phase;
+    spi_init.NSS = LL_SPI_NSS_SOFT;  /* Always use software NSS */
+    spi_init.BaudRate = prescaler;
+    spi_init.BitOrder = bit_order;
+    spi_init.CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE;
+    spi_init.CRCPoly = 7U;
+    
+    /* Initialize SPI */
+    if (LL_SPI_Init(hw->instance, &spi_init) != SUCCESS) {
+        LOG_E("Failed to initialize SPI%s", hw->name);
+        return -EIO;
+    }
+    
+    /* Enable SPI */
+    LL_SPI_Enable(hw->instance);
+    
+    /* Save actual speed to controller (will be read by framework) */
+    ctrl->actual_speed_hz = actual_speed;
+    
     return 0;
 }
 
-#if defined(BSP_USING_SPI4)
-void SPI4_IRQHandler(void)
+/**
+ * @brief Set chip select state (spi_controller_ops implementation)
+ * @param ctrl Controller pointer
+ * @param dev Device pointer
+ * @param enable 1=activate (pull low), 0=release (pull high)
+ */
+static void stm32_spi_set_cs(struct spi_controller *ctrl, struct spi_device *dev, uint8_t enable)
 {
-    HAL_SPI_IRQHandler(&stm_spi_drv[SPI4_INDEX].hspi);
+    if ((ctrl == NULL) || (dev == NULL)) {
+        return;
+    }
+    
+    if ((dev->mode & SPI_MODE_HW_CS) == 0U) {
+        /* Software CS: control GPIO */
+        /* enable=1 means CS active (low), enable=0 means CS inactive (high) */
+        gpio_write(dev->cs_pin, (enable != 0U) ? 0U : 1U);
+    } else {
+        /* Hardware CS: controlled by hardware NSS pin */
+        /* For STM32F1, hardware NSS is managed automatically when NSS is configured */
+        /* No additional action needed */
+    }
 }
-#endif  /* BSP_USING_SPI4 */
 
-#if defined(BSP_USING_SPI4) && defined(BSP_SPI4_RX_USING_DMA)
-void DMA2_Stream0_IRQHandler(void)
+/**
+ * @brief Execute single transfer (spi_controller_ops implementation)
+ * @param ctrl Controller pointer
+ * @param dev Device pointer
+ * @param transfer Transfer descriptor pointer
+ * @return Number of bytes transferred on success, error code on failure
+ */
+static ssize_t stm32_spi_transfer_one(struct spi_controller *ctrl,
+                                     struct spi_device *dev,
+                                     struct spi_transfer *transfer)
 {
-    HAL_DMA_IRQHandler(&stm_spi_drv[SPI4_INDEX].rx_dma.hdma);
+    struct stm32_spi_hw *hw;
+    SPI_TypeDef *spi;
+    const uint8_t *tx_buf;
+    uint8_t *rx_buf;
+    size_t len;
+    size_t i;
+    uint8_t tx_byte;
+    uint8_t rx_byte;
+    uint32_t timeout;
+    
+    if ((ctrl == NULL) || (dev == NULL) || (transfer == NULL) || (ctrl->priv == NULL)) {
+        return -EINVAL;
+    }
+    
+    if (transfer->len == 0U) {
+        return 0;
+    }
+    
+    hw = (struct stm32_spi_hw *)ctrl->priv;
+    spi = hw->instance;
+    tx_buf = (const uint8_t *)transfer->tx_buf;
+    rx_buf = (uint8_t *)transfer->rx_buf;
+    len = transfer->len;
+    
+    /* Check for errors */
+    if (LL_SPI_IsActiveFlag_OVR(spi) != 0U) {
+        LL_SPI_ClearFlag_OVR(spi);
+        return -EIO;
+    }
+    
+    if (LL_SPI_IsActiveFlag_MODF(spi) != 0U) {
+        LL_SPI_ClearFlag_MODF(spi);
+        return -EIO;
+    }
+    
+    /* Wait for SPI to be ready */
+    timeout = 10000U;  /* Timeout counter */
+    while ((LL_SPI_IsActiveFlag_BSY(spi) != 0U) && (timeout > 0U)) {
+        timeout--;
+    }
+    
+    if (timeout == 0U) {
+        return -EIO;
+    }
+    
+    /* Perform transfer */
+    for (i = 0U; i < len; i++) {
+        /* Prepare TX data */
+        if (tx_buf != NULL) {
+            tx_byte = tx_buf[i];
+        } else {
+            tx_byte = 0xFFU;  /* Dummy byte for read */
+        }
+        
+        /* Wait for TX buffer empty */
+        timeout = 10000U;
+        while ((LL_SPI_IsActiveFlag_TXE(spi) == 0U) && (timeout > 0U)) {
+            timeout--;
+        }
+        
+        if (timeout == 0U) {
+            return (ssize_t)i;  /* Return bytes transferred so far */
+        }
+        
+        /* Send data */
+        LL_SPI_TransmitData8(spi, tx_byte);
+        
+        /* Wait for RX buffer not empty */
+        timeout = 10000U;
+        while ((LL_SPI_IsActiveFlag_RXNE(spi) == 0U) && (timeout > 0U)) {
+            timeout--;
+        }
+        
+        if (timeout == 0U) {
+            return (ssize_t)i;  /* Return bytes transferred so far */
+        }
+        
+        /* Read data */
+        rx_byte = LL_SPI_ReceiveData8(spi);
+        
+        /* Store RX data if buffer provided */
+        if (rx_buf != NULL) {
+            rx_buf[i] = rx_byte;
+        }
+    }
+    
+    /* Wait for transfer to complete */
+    timeout = 10000U;
+    while ((LL_SPI_IsActiveFlag_BSY(spi) != 0U) && (timeout > 0U)) {
+        timeout--;
+    }
+    
+    /* Check for overrun error */
+    if (LL_SPI_IsActiveFlag_OVR(spi) != 0U) {
+        LL_SPI_ClearFlag_OVR(spi);
+        return -EIO;
+    }
+    
+    return (ssize_t)len;
 }
-#endif  /* BSP_USING_SPI4 && BSP_SPI4_RX_USING_DMA */
 
-#if defined(BSP_USING_SPI4) && defined(BSP_SPI4_TX_USING_DMA)
-void DMA2_Stream1_IRQHandler(void)
+/**
+ * @brief SPI controller operations
+ */
+static const struct spi_controller_ops stm32_spi_ops = {
+    .setup = stm32_spi_setup,
+    .set_cs = stm32_spi_set_cs,
+    .transfer_one = stm32_spi_transfer_one,
+};
+
+/**
+ * @brief Get peripheral clock frequency for SPI
+ * @param spi_instance SPI peripheral instance
+ * @return Clock frequency in Hz, 0 on error
+ * @note Uses LL library macros for cleaner implementation
+ */
+static uint32_t stm32_spi_get_pclk_freq(SPI_TypeDef *spi_instance)
 {
-    HAL_DMA_IRQHandler(&stm_spi_drv[SPI4_INDEX].tx_dma.hdma);
+    uint32_t hclk_freq;
+    uint32_t apb_prescaler;
+    
+    if (spi_instance == NULL) {
+        return 0U;
+    }
+    
+    /* Get HCLK frequency (SystemCoreClock) */
+    hclk_freq = SystemCoreClock;
+    
+#if defined(BSP_USING_SPI1)
+    if (spi_instance == SPI1) {
+        /* SPI1 is on APB2 */
+        apb_prescaler = LL_RCC_GetAPB2Prescaler();
+        /* Use LL library macro to calculate PCLK2 frequency */
+        return __LL_RCC_CALC_PCLK2_FREQ(hclk_freq, apb_prescaler);
+    }
+#endif
+    
+#if defined(BSP_USING_SPI2) || defined(BSP_USING_SPI3)
+    if ((spi_instance == SPI2) || (spi_instance == SPI3)) {
+        /* SPI2/3 are on APB1 */
+        apb_prescaler = LL_RCC_GetAPB1Prescaler();
+        /* Use LL library macro to calculate PCLK1 frequency */
+        return __LL_RCC_CALC_PCLK1_FREQ(hclk_freq, apb_prescaler);
+    }
+#endif
+    
+    return 0U;
 }
-#endif  /* BSP_USING_SPI4 && BSP_SPI4_TX_USING_DMA */
 
-#if defined(BSP_USING_SPI5)
-void SPI5_IRQHandler(void)
+/**
+ * @brief Initialize STM32 SPI BSP driver
+ * @return 0 on success, error code on failure
+ */
+int bsp_spi_init(void)
 {
-    HAL_SPI_IRQHandler(&stm_spi_drv[SPI5_INDEX].hspi);
+    int ret;
+    uint8_t i;
+    uint32_t pclk_freq;
+    uint32_t max_speed_hz;
+    size_t spi_count;
+    
+    spi_count = sizeof(stm32_spi_hw) / sizeof(stm32_spi_hw[0]);
+    
+    for (i = 0U; i < spi_count; i++) {
+        /* Get peripheral clock frequency */
+        pclk_freq = stm32_spi_get_pclk_freq(stm32_spi_hw[i].instance);
+        if (pclk_freq == 0U) {
+            LOG_E("Failed to get PCLK frequency for SPI%u", i + 1U);
+            return -EIO;
+        }
+        
+        stm32_spi_hw[i].pclk_freq = pclk_freq;
+        
+        /* Calculate maximum speed */
+        /* STM32F1: In master mode with polling, max speed is PCLK/2 */
+        /* However, we must also respect datasheet limit (typically 18MHz) */
+        max_speed_hz = pclk_freq >> 1U;  /* PCLK/2 - hardware limit */
+        
+        /* Apply datasheet maximum speed limit */
+        if (max_speed_hz > STM32_SPI_MAX_SPEED_HZ) {
+            max_speed_hz = STM32_SPI_MAX_SPEED_HZ;
+        }
+        
+        stm32_spi_hw[i].max_speed_hz = max_speed_hz;
+        
+        /* Initialize GPIO */
+        ret = stm32_spi_gpio_init(stm32_spi_hw[i].instance);
+        if (ret != 0) {
+            LOG_E("Failed to initialize GPIO for SPI%u", i + 1U);
+            return ret;
+        }
+        
+        /* Register controller */
+        ret = spi_controller_register(&stm32_spi_controller[i], 
+                                     stm32_spi_hw[i].name, 
+                                     &stm32_spi_ops);
+        if (ret != 0) {
+            LOG_E("Failed to register SPI controller '%s'", stm32_spi_hw[i].name);
+            return ret;
+        }
+        
+        /* Set controller private data */
+        stm32_spi_controller[i].priv = &stm32_spi_hw[i];
+        
+        /* Configure thread safety (bare-metal: use interrupt control) */
+        stm32_spi_controller[i].irq_disable = __disable_irq;
+        stm32_spi_controller[i].irq_enable = __enable_irq;
+        
+        LOG_I("SPI controller '%s' initialized (max speed: %lu Hz)", 
+              stm32_spi_hw[i].name, max_speed_hz);
+    }
+    
+    return 0;
 }
-#endif  /* BSP_USING_SPI5 */
 
-#if defined(BSP_USING_SPI5) && defined(BSP_SPI5_RX_USING_DMA)
-void DMA2_Stream3_IRQHandler(void)
-{
-    HAL_DMA_IRQHandler(&stm_spi_drv[SPI5_INDEX].rx_dma.hdma);
-}
-#endif  /* BSP_USING_SPI5 && BSP_SPI5_RX_USING_DMA */
-
-#if defined(BSP_USING_SPI5) && defined(BSP_SPI5_TX_USING_DMA)
-void DMA2_Stream4_IRQHandler(void)
-{
-    HAL_DMA_IRQHandler(&stm_spi_drv[SPI5_INDEX].tx_dma.hdma);
-}
-#endif  /* BSP_USING_SPI5 && BSP_SPI5_TX_USING_DMA */
-
-#endif /* BSP_USING_SPI1 || BSP_USING_SPI2 || BSP_USING_SPI3 || BSP_USING_SPI4 || BSP_USING_SPI5 */
-#endif /* USING_SPI */
+#endif
