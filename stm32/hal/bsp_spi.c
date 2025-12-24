@@ -174,8 +174,6 @@ static uint32_t stm32_spi_calculate_prescaler(uint32_t pclk_freq, uint32_t max_s
 static int stm32_spi_gpio_init(SPI_TypeDef *spi_instance)
 {
     LL_GPIO_InitTypeDef gpio_init = {0};
-    GPIO_TypeDef *gpio_port;
-    uint32_t gpio_pins;
     
     if (spi_instance == NULL) {
         return -EINVAL;
@@ -446,7 +444,7 @@ static ssize_t stm32_spi_transfer_one(struct spi_controller *ctrl,
         if (tx_buf != NULL) {
             tx_byte = tx_buf[i];
         } else {
-            tx_byte = 0xFFU;  /* Dummy byte for read */
+            tx_byte = 0x00U;  /* Dummy byte for read */
         }
         
         /* Wait for TX buffer empty */
