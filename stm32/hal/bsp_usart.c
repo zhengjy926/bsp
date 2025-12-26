@@ -781,6 +781,8 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
 #endif
         GPIO_InitStruct.Pin = BSP_UART3_RX_PIN;
         HAL_GPIO_Init(BSP_UART3_RX_PORT, &GPIO_InitStruct);
+        
+        __HAL_AFIO_REMAP_USART3_PARTIAL();
 
         HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(USART3_IRQn);
