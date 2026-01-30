@@ -34,6 +34,10 @@
     #include "task.h"
 #endif // USING_RTOS
 
+#define  LOG_TAG             "bsp_it"
+#define  LOG_LVL             4
+#include "log.h"
+
 typedef struct
 {
     uint32_t r0;
@@ -79,6 +83,7 @@ void HardFault_C(uint32_t *sp, uint32_t exc_lr)
 
     // 3) 这里你可以用 RTT/UART 打印 g_fault，或写入备份 RAM/Flash 做崩溃日志
     //    调试阶段：直接在这里打断点，然后看 g_fault 的值
+    LOG_E("g_fault = %d", g_fault.pc);
 
     while (1) {
         __asm volatile("nop");
@@ -101,14 +106,14 @@ void NMI_Handler(void)
  */
 void HardFault_Handler(void)
 {
-//    __asm volatile(
-//        "tst lr, #4                        \n" // EXC_RETURN bit2: 0->MSP, 1->PSP
-//        "ite eq                            \n"
-//        "mrseq r0, msp                     \n"
-//        "mrsne r0, psp                     \n"
-//        "mov   r1, lr                      \n" // r1 = EXC_RETURN
-//        "b     HardFault_C                 \n"
-//    );
+    __asm volatile(
+        "tst lr, #4                        \n" // EXC_RETURN bit2: 0->MSP, 1->PSP
+        "ite eq                            \n"
+        "mrseq r0, msp                     \n"
+        "mrsne r0, psp                     \n"
+        "mov   r1, lr                      \n" // r1 = EXC_RETURN
+        "b     HardFault_C                 \n"
+    );
     while (1)
     {
     };

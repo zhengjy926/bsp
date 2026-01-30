@@ -1254,6 +1254,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
     struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
     serial_t *port = &serial_dev[stm_uart->index];
+    
+    LOG_D("UART errno code = %d", huart->ErrorCode);
 
     /* 重新启动接收 */
     stm32_uart_start_rx(port);

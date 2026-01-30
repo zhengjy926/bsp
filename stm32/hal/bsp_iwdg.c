@@ -81,27 +81,14 @@ static const iwdg_prescaler_t _prescaler_table[] = {
 /* Exported variables  -------------------------------------------------------*/
 
 /* Private function prototypes -----------------------------------------------*/
-/**
- * @brief 根据超时时间计算预分频器和重载值
- * @param timeout_ms 超时时间（毫秒）
- * @param prescaler 输出的预分频器值
- * @param reload 输出的重载值
- * @return 0成功，-EINVAL表示超时时间超出范围
- */
-static int _calculate_timeout(uint32_t timeout_ms, uint32_t *prescaler, uint32_t *reload);
 
-/**
- * @brief 根据预分频器和重载值计算超时时间
- * @param prescaler 预分频器值
- * @param reload 重载值
- * @return 超时时间（毫秒）
- */
+static int _calculate_timeout(uint32_t timeout_ms, uint32_t *prescaler, uint32_t *reload);
 static uint32_t _get_timeout_from_config(uint32_t prescaler, uint32_t reload);
 
 /* Exported functions --------------------------------------------------------*/
 
 /**
- * @brief 启动看门狗（必需操作）
+ * @brief 启动看门狗
  * @param dev 看门狗设备指针
  * @return 0成功，负值表示错误码
  */

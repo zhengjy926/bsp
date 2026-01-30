@@ -597,10 +597,6 @@ int bsp_spi_init(void)
         /* Set controller private data */
         stm32_spi_controller[i].priv = &stm32_spi_hw[i];
         
-        /* Configure thread safety (bare-metal: use interrupt control) */
-        stm32_spi_controller[i].irq_disable = __disable_irq;
-        stm32_spi_controller[i].irq_enable = __enable_irq;
-        
         LOG_I("SPI controller '%s' initialized (max speed: %lu Hz)", 
               stm32_spi_hw[i].name, max_speed_hz);
     }
