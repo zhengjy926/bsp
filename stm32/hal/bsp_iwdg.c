@@ -59,7 +59,9 @@ static int stm32_iwdg_start(struct wdg_device *wdg)
     hiwdg.Instance = IWDG;
     hiwdg.Init.Prescaler = ( presc <= (1 << PR_SHIFT) ) ? 0 : (ilog2(presc) - PR_SHIFT);
     hiwdg.Init.Reload = ((wdg->timeout * LSI_VALUE) / presc) - 1;
-    
+#ifdef IWDG_WINR_WIN
+    hiwdg.Init.Window = hiwdg.Init.Reload;
+#endif
     status = HAL_IWDG_Init(&hiwdg);
     if (status != HAL_OK) {
         return -EIO;

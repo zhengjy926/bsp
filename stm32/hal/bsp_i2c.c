@@ -12,12 +12,14 @@
  *                2. Support I2C framework interface
  *                3. Support 7-bit and 10-bit addressing
  *                4. Support multi-message transfers
+ *                5. Bus hang recovery (scl_pin_id/sda_pin_id + prepare/unprepare + recovery_delay_us)
  *
  ******************************************************************************
  */
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_i2c.h"
 #include "i2c.h"
+#include "bsp_dwt.h"
 #include "errno-base.h"
 #include "bsp_conf.h"
 #include "stm32f1xx_hal.h"
@@ -71,6 +73,15 @@ static struct i2c_adapter stm32_i2c_adapter[I2C_INDEX_MAX];
 
 /* Private function prototypes -----------------------------------------------*/
 static int stm32_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, uint32_t num);
+#ifdef BSP_USING_I2C1
+static void stm32_i2c1_prepare_recovery(struct i2c_adapter *adap);
+static void stm32_i2c1_unprepare_recovery(struct i2c_adapter *adap);
+#endif
+#ifdef BSP_USING_I2C2
+static void stm32_i2c2_prepare_recovery(struct i2c_adapter *adap);
+static void stm32_i2c2_unprepare_recovery(struct i2c_adapter *adap);
+#endif
+static void stm32_i2c_recovery_delay_us(struct i2c_adapter *adap, uint32_t us);
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -235,12 +246,16 @@ static int stm32_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, uint32
             } else if (hal_status == HAL_ERROR) {
                 /* Check specific error code */
                 if ((hi2c->ErrorCode & HAL_I2C_ERROR_AF) != 0U) {
+                    LOG_E("stm32_i2c_xfer: HAL_I2C_ERROR_AF");
                     return -EIO;  /* NACK error */
                 } else if ((hi2c->ErrorCode & HAL_I2C_ERROR_BERR) != 0U) {
+                    LOG_E("stm32_i2c_xfer: HAL_I2C_ERROR_BERR");
                     return -EIO;  /* Bus error */
                 } else if ((hi2c->ErrorCode & HAL_I2C_ERROR_ARLO) != 0U) {
+                    LOG_E("stm32_i2c_xfer: HAL_I2C_ERROR_ARLO");
                     return -EIO;  /* Arbitration lost */
                 } else if ((hi2c->ErrorCode & HAL_I2C_ERROR_OVR) != 0U) {
+                    LOG_E("stm32_i2c_xfer: HAL_I2C_ERROR_OVR");
                     return -EIO;  /* Overrun error */
                 } else {
                     return -EIO;
@@ -248,15 +263,6 @@ static int stm32_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, uint32
             } else {
                 return -EIO;
             }
-        }
-        
-        /* If STOP flag is set or this is the last message, HAL already sent STOP */
-        /* For multi-message transfers without STOP flag, HAL uses repeated START */
-        if (((flags & I2C_M_STOP) != 0U) || (i == (num - 1U))) {
-            /* STOP already sent by HAL */
-        } else {
-            /* For next message, HAL will use repeated START automatically */
-            /* No additional action needed */
         }
     }
     
@@ -269,6 +275,133 @@ static int stm32_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, uint32
 static const struct i2c_algorithm stm32_i2c_algorithm = {
     .xfer = stm32_i2c_xfer,
 };
+
+#ifdef BSP_USING_I2C1
+/**
+ * @brief Prepare I2C1 for bus recovery: De-Init I2C, then init SCL/SDA as GPIO output OD (High)
+ */
+static void stm32_i2c1_prepare_recovery(struct i2c_adapter *adap)
+{
+    struct stm32_i2c_hw *hw;
+    GPIO_InitTypeDef gpio_init = {0};
+
+    if (adap == NULL) {
+        return;
+    }
+    hw = (struct stm32_i2c_hw *)adap->algo_data;
+    if (hw == NULL) {
+        return;
+    }
+
+    (void)HAL_I2C_DeInit(&hw->hi2c);
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    gpio_init.Pin = BSP_I2C1_SCL_PIN;
+    gpio_init.Mode = GPIO_MODE_OUTPUT_OD;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(BSP_I2C1_SCL_PORT, &gpio_init);
+    HAL_GPIO_WritePin(BSP_I2C1_SCL_PORT, BSP_I2C1_SCL_PIN, GPIO_PIN_SET);
+
+    gpio_init.Pin = BSP_I2C1_SDA_PIN;
+    HAL_GPIO_Init(BSP_I2C1_SDA_PORT, &gpio_init);
+    HAL_GPIO_WritePin(BSP_I2C1_SDA_PORT, BSP_I2C1_SDA_PIN, GPIO_PIN_SET);
+}
+
+/**
+ * @brief Unprepare I2C1 after recovery: Re-Init I2C (pins back to AF_OD, peripheral configured)
+ */
+static void stm32_i2c1_unprepare_recovery(struct i2c_adapter *adap)
+{
+    struct stm32_i2c_hw *hw;
+
+    if (adap == NULL) {
+        return;
+    }
+    hw = (struct stm32_i2c_hw *)adap->algo_data;
+    if (hw == NULL) {
+        return;
+    }
+
+    (void)HAL_I2C_Init(&hw->hi2c);
+}
+
+static struct i2c_bus_recovery_info stm32_i2c1_recovery = {
+    .scl_pin_id         = BSP_I2C1_SCL_PIN_ID,
+    .sda_pin_id         = BSP_I2C1_SDA_PIN_ID,
+    .prepare_recovery   = stm32_i2c1_prepare_recovery,
+    .unprepare_recovery  = stm32_i2c1_unprepare_recovery,
+    .recovery_delay_us   = stm32_i2c_recovery_delay_us,
+};
+#endif
+
+#ifdef BSP_USING_I2C2
+/**
+ * @brief Prepare I2C2 for bus recovery: De-Init I2C, then init SCL/SDA as GPIO output OD (High)
+ */
+static void stm32_i2c2_prepare_recovery(struct i2c_adapter *adap)
+{
+    struct stm32_i2c_hw *hw;
+    GPIO_InitTypeDef gpio_init = {0};
+
+    if (adap == NULL) {
+        return;
+    }
+    hw = (struct stm32_i2c_hw *)adap->algo_data;
+    if (hw == NULL) {
+        return;
+    }
+
+    (void)HAL_I2C_DeInit(&hw->hi2c);
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    gpio_init.Pin = BSP_I2C2_SCL_PIN;
+    gpio_init.Mode = GPIO_MODE_OUTPUT_OD;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(BSP_I2C2_SCL_PORT, &gpio_init);
+    HAL_GPIO_WritePin(BSP_I2C2_SCL_PORT, BSP_I2C2_SCL_PIN, GPIO_PIN_SET);
+
+    gpio_init.Pin = BSP_I2C2_SDA_PIN;
+    HAL_GPIO_Init(BSP_I2C2_SDA_PORT, &gpio_init);
+    HAL_GPIO_WritePin(BSP_I2C2_SDA_PORT, BSP_I2C2_SDA_PIN, GPIO_PIN_SET);
+}
+
+/**
+ * @brief Unprepare I2C2 after recovery: Re-Init I2C (pins back to AF_OD, peripheral configured)
+ */
+static void stm32_i2c2_unprepare_recovery(struct i2c_adapter *adap)
+{
+    struct stm32_i2c_hw *hw;
+
+    if (adap == NULL) {
+        return;
+    }
+    hw = (struct stm32_i2c_hw *)adap->algo_data;
+    if (hw == NULL) {
+        return;
+    }
+
+    (void)HAL_I2C_Init(&hw->hi2c);
+}
+
+static struct i2c_bus_recovery_info stm32_i2c2_recovery = {
+    .scl_pin_id         = BSP_I2C2_SCL_PIN_ID,
+    .sda_pin_id         = BSP_I2C2_SDA_PIN_ID,
+    .prepare_recovery   = stm32_i2c2_prepare_recovery,
+    .unprepare_recovery = stm32_i2c2_unprepare_recovery,
+    .recovery_delay_us  = stm32_i2c_recovery_delay_us,
+};
+#endif
+
+/**
+ * @brief Recovery delay in microseconds (100kHz half-period = 5us)
+ */
+static void stm32_i2c_recovery_delay_us(struct i2c_adapter *adap, uint32_t us)
+{
+    (void)adap;
+    bsp_dwt_delay_us(us);
+}
 
 /**
  * @brief Initialize STM32 I2C BSP driver
@@ -336,7 +469,18 @@ int bsp_i2c_init(void)
         adap->timeout_ms = I2C_TIMEOUT_MS;
         adap->addr_width = 7U;  /* Default 7-bit */
         adap->retries = 3U;     /* Default retries */
-        
+
+#ifdef BSP_USING_I2C1
+        if (i == I2C1_INDEX) {
+            adap->bus_recovery_info = &stm32_i2c1_recovery;
+        }
+#endif
+#ifdef BSP_USING_I2C2
+        if (i == I2C2_INDEX) {
+            adap->bus_recovery_info = &stm32_i2c2_recovery;
+        }
+#endif
+
         LOG_I("I2C adapter %s registered, speed: %lu Hz", hw->name, speed_hz);
     }
     

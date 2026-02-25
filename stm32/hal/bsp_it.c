@@ -60,6 +60,7 @@ typedef struct
 
 volatile fault_snapshot_t g_fault;
 
+__attribute__((used))
 void HardFault_C(uint32_t *sp, uint32_t exc_lr)
 {
     // 1) 保存堆栈现场（入栈顺序固定）
