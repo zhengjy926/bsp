@@ -35,6 +35,7 @@
 /* Exported function prototypes ----------------------------------------------*/
 int bsp_hrtim_init(void);
 uint16_t tim_arr_from_ms(uint32_t ms);
+uint16_t tim_arr_from_us(uint32_t us);
 
 #ifdef __cplusplus
 }

@@ -460,8 +460,8 @@ static void stm32_uart_dma_config(struct stm32_uart *uartHandle)
         uartHandle->hdma_uart_tx.Instance = BSP_UART2_DMA_TX_INSTANCE;
         uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_USART2_TX;
         stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART2_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART2_DMA_RX_IRQn);
+        HAL_NVIC_SetPriority(BSP_UART2_DMA_TX_IRQn, 0, 0);
+        HAL_NVIC_EnableIRQ(BSP_UART2_DMA_TX_IRQn);
 #endif
         break;
 #endif
@@ -604,9 +604,11 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         GPIO_InitStruct.Pin = BSP_UART2_TX_PIN;
         GPIO_InitStruct.Alternate = BSP_UART2_TX_AF;
         HAL_GPIO_Init(BSP_UART2_TX_PORT, &GPIO_InitStruct);
+
         GPIO_InitStruct.Pin = BSP_UART2_RX_PIN;
         GPIO_InitStruct.Alternate = BSP_UART2_RX_AF;
         HAL_GPIO_Init(BSP_UART2_RX_PORT, &GPIO_InitStruct);
+        
         HAL_NVIC_SetPriority(USART2_IRQn, 0, BSP_UART2_IRQ_PRIORITY);
         HAL_NVIC_EnableIRQ(USART2_IRQn);
         break;
@@ -934,11 +936,26 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     if (!port) {
         return;
     }
+    
+    /* 防御：DMA 回调 Size 超出缓冲区，直接重启接收 */
+    if (Size > stm_uart->rx_dma_bufsz) {
+        stm_uart->last_pos = 0U;
+        (void)stm32_uart_start_rx(port);
+        return;
+    }
 
+    /* 防御：下溢风险（Size < last_pos），直接丢弃并重启 */
+    if (Size < stm_uart->last_pos) {
+        stm_uart->last_pos = 0U;
+        (void)stm32_uart_start_rx(port);
+        return;
+    }
+    
+    process_size = Size - stm_uart->last_pos;  // 计算需要处理的数据量
+    
     if (huart->RxEventType == HAL_UART_RXEVENT_HT)
     {
         // 半满中断 - 处理前半部分数据
-        process_size = Size - stm_uart->last_pos;  // 计算需要处理的数据量
         if (process_size > 0) {
             hw_serial_rx_done_isr(port, stm_uart->rx_dma_buf + stm_uart->last_pos, process_size);
             stm_uart->last_pos = Size;  // 更新已处理位置
@@ -948,13 +965,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
              huart->RxEventType == HAL_UART_RXEVENT_IDLE)
     {
         // 传输完成或空闲中断 - 处理剩余数据
-        process_size = Size - stm_uart->last_pos;  // 计算剩余的数据量
         if (process_size > 0) {
             hw_serial_rx_done_isr(port, stm_uart->rx_dma_buf + stm_uart->last_pos, process_size);
         }
 
         // 重置位置计数器并重新启动接收
-        stm_uart->last_pos = 0;
+        stm_uart->last_pos = 0U;
         stm32_uart_start_rx(port);
     }
 }

@@ -65,8 +65,9 @@ int bsp_hrtim_init(void)
     }
 
     /* HRTIM1 interrupt Init */
-    NVIC_SetPriority(HRTIM1_TIMB_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
-    NVIC_EnableIRQ(HRTIM1_TIMB_IRQn);
+    /* 启用定时器A的重复中断，用于软件串计数 */
+    NVIC_SetPriority(HRTIM1_TIMA_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
+    NVIC_EnableIRQ(HRTIM1_TIMA_IRQn);
     
     /* 故障保护配置 */
     HRTIM_Fault_Configuration();
@@ -129,31 +130,32 @@ int bsp_hrtim_init(void)
     LL_HRTIM_OUT_SetFaultState(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_FAULTSTATE_INACTIVE);
     LL_HRTIM_OUT_SetChopperMode(HRTIM1, LL_HRTIM_OUTPUT_TA2, LL_HRTIM_OUT_CHOPPERMODE_DISABLED);
 
-    /* ============================================================ */
-    /*  Timer B 配置                                                */
-    /* ============================================================ */
-    LL_HRTIM_TIM_SetPrescaler(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_PRESCALERRATIO_MUL4);
-    LL_HRTIM_TIM_SetCounterMode(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_MODE_CONTINUOUS);
-    LL_HRTIM_TIM_SetPeriod(HRTIM1, LL_HRTIM_TIMER_B, 0xFFFB);
-    LL_HRTIM_TIM_SetRepetition(HRTIM1, LL_HRTIM_TIMER_B, 0x00);
-    LL_HRTIM_TIM_SetUpdateGating(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_UPDATEGATING_DMABURST);
-    LL_HRTIM_TIM_SetCountingMode(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_COUNTING_MODE_UP);
-    LL_HRTIM_TIM_SetDACTrig(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_DACTRIG_NONE);
-    LL_HRTIM_TIM_DisableHalfMode(HRTIM1, LL_HRTIM_TIMER_B);
-    LL_HRTIM_TIM_SetInterleavedMode(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_INTERLEAVED_MODE_DISABLED);
-    LL_HRTIM_TIM_DisableStartOnSync(HRTIM1, LL_HRTIM_TIMER_B);
-    LL_HRTIM_TIM_DisableResetOnSync(HRTIM1, LL_HRTIM_TIMER_B);
-    LL_HRTIM_TIM_EnablePreload(HRTIM1, LL_HRTIM_TIMER_B);
-    LL_HRTIM_TIM_SetUpdateTrig(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_UPDATETRIG_NONE|LL_HRTIM_UPDATETRIG_NONE|LL_HRTIM_UPDATETRIG_RESET);
-    LL_HRTIM_TIM_SetResetTrig(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_RESETTRIG_NONE);
-    LL_HRTIM_TIM_DisablePushPullMode(HRTIM1, LL_HRTIM_TIMER_B);
-    LL_HRTIM_TIM_DisableDeadTime(HRTIM1, LL_HRTIM_TIMER_B);
-    LL_HRTIM_TIM_SetBurstModeOption(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_BURSTMODE_RESETCOUNTER);
-    LL_HRTIM_ForceUpdate(HRTIM1, LL_HRTIM_TIMER_B);
-    LL_HRTIM_TIM_ConfigBurstDMA(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_BURSTDMA_MPER|LL_HRTIM_BURSTDMA_MREP);
-
-    LL_HRTIM_ClearFlag_REP(HRTIM1, LL_HRTIM_TIMER_B);
-    LL_HRTIM_EnableIT_REP(HRTIM1, LL_HRTIM_TIMER_B);
+//    /* ============================================================ */
+//    /*  Timer B 配置                                                */
+//    /* ============================================================ */
+//    LL_HRTIM_TIM_SetPrescaler(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_PRESCALERRATIO_MUL4);
+//    LL_HRTIM_TIM_SetCounterMode(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_MODE_CONTINUOUS);
+//    LL_HRTIM_TIM_SetPeriod(HRTIM1, LL_HRTIM_TIMER_B, 0xFFFB);
+//    LL_HRTIM_TIM_SetRepetition(HRTIM1, LL_HRTIM_TIMER_B, 0x00);
+//    LL_HRTIM_TIM_SetUpdateGating(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_UPDATEGATING_DMABURST);
+//    LL_HRTIM_TIM_SetCountingMode(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_COUNTING_MODE_UP);
+//    LL_HRTIM_TIM_SetDACTrig(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_DACTRIG_NONE);
+//    LL_HRTIM_TIM_DisableHalfMode(HRTIM1, LL_HRTIM_TIMER_B);
+//    LL_HRTIM_TIM_SetInterleavedMode(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_INTERLEAVED_MODE_DISABLED);
+//    LL_HRTIM_TIM_DisableStartOnSync(HRTIM1, LL_HRTIM_TIMER_B);
+//    LL_HRTIM_TIM_DisableResetOnSync(HRTIM1, LL_HRTIM_TIMER_B);
+//    LL_HRTIM_TIM_EnablePreload(HRTIM1, LL_HRTIM_TIMER_B);
+//    LL_HRTIM_TIM_SetUpdateTrig(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_UPDATETRIG_NONE|LL_HRTIM_UPDATETRIG_NONE|LL_HRTIM_UPDATETRIG_RESET);
+//    LL_HRTIM_TIM_SetResetTrig(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_RESETTRIG_NONE);
+//    LL_HRTIM_TIM_DisablePushPullMode(HRTIM1, LL_HRTIM_TIMER_B);
+//    LL_HRTIM_TIM_DisableDeadTime(HRTIM1, LL_HRTIM_TIMER_B);
+//    LL_HRTIM_TIM_SetBurstModeOption(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_BURSTMODE_RESETCOUNTER);
+//    LL_HRTIM_ForceUpdate(HRTIM1, LL_HRTIM_TIMER_B);
+//    LL_HRTIM_TIM_ConfigBurstDMA(HRTIM1, LL_HRTIM_TIMER_B, LL_HRTIM_BURSTDMA_MPER|LL_HRTIM_BURSTDMA_MREP);
+    
+    /* 启用定时器A的重复中断，用于软件串计数 */
+    LL_HRTIM_ClearFlag_REP(HRTIM1, LL_HRTIM_TIMER_A);
+    LL_HRTIM_EnableIT_REP(HRTIM1, LL_HRTIM_TIMER_A);
     
     /* 清除标志 */
     LL_HRTIM_ClearFlag_FLT4(HRTIM1);
@@ -229,6 +231,30 @@ uint16_t tim_arr_from_ms(uint32_t ms)
 {
     /* ticks = round(ms * f / 1000)  —— 用 +500 实现对 /1000 的四舍五入 */
     uint32_t ticks = (ms * HRTIM_BUSTMODE_FREQ_HZ + 500u) / 1000u;
+
+    /* 保护：至少 1 个计数，且不超过 65536（因为 ARR = ticks-1） */
+    if (ticks == 0u)
+        ticks = 1u;
+    
+    if (ticks > (65535 + 1u))
+        ticks = 65535 + 1u;
+
+    return (uint16_t)(ticks - 1u);
+}
+
+/**
+ * @brief 从微秒值计算定时器ARR值（支持10us精度）
+ *
+ * @param[in] us 微秒值
+ *
+ * @return uint16_t 定时器ARR值
+ *
+ * @details 将微秒值转换为HRTIM定时器的ARR值，支持10us精度
+ */
+uint16_t tim_arr_from_us(uint32_t us)
+{
+    /* ticks = round(us * f / 1000000)  —— 用 +500000 实现对 /1000000 的四舍五入 */
+    uint32_t ticks = (us * HRTIM_BUSTMODE_FREQ_HZ + 500000u) / 1000000u;
 
     /* 保护：至少 1 个计数，且不超过 65536（因为 ARR = ticks-1） */
     if (ticks == 0u)
