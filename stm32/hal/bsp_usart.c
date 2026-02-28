@@ -1222,7 +1222,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     }
     
     /* 防御：DMA 回调 Size 超出缓冲区，直接重启接收 */
-    if (Size > stm_uart->rx_dma_bufsz) {
+    if (Size > stm_uart->rx_cache_bufsz) {
         stm_uart->last_pos = 0U;
         (void)stm32_uart_start_rx(port);
         return;
