@@ -32,7 +32,7 @@
 /* Exported variable prototypes ----------------------------------------------*/
 
 /* Exported function prototypes ----------------------------------------------*/
-void bsp_gpio_init(void);
+void BSP_GPIO_Init(void);
 
 #ifdef __cplusplus
 }
