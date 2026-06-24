@@ -19,16 +19,6 @@
 #include "bsp_it.h"
 #include "bsp_conf.h"
 
-#if defined(STM32F1)
-    #include "stm32f1xx.h"
-#elif defined(STM32F4)
-    #include "stm32f4xx.h"
-#elif defined(STM32G4)
-    #include "stm32g4xx.h"
-#else
-#error "Please select first the soc series used in your application!"    
-#endif
-
 #if USING_RTOS
     #include "FreeRTOS.h"
     #include "task.h"
@@ -37,6 +27,8 @@
 #define  LOG_TAG             "bsp_it"
 #define  LOG_LVL             ELOG_LVL_DEBUG
 #include "elog.h"
+
+#include "qpc.h"
 
 typedef struct
 {
@@ -107,12 +99,14 @@ void HardFault_C(uint32_t *sp, uint32_t exc_lr)
 /**
  * @brief This function handles Non maskable interrupt.
  */
+#if !defined(QP_API_VERSION)
 void NMI_Handler(void)
 {
     while (1)
     {
     }
 }
+#endif
 
 /**
  * @brief This function handles Hard fault interrupt.
@@ -181,10 +175,12 @@ void DebugMon_Handler(void)
 /**
   * @brief This function handles Pendable request for system service.
   */
+#if !defined(QP_API_VERSION)
 void PendSV_Handler(void)
 {
     
 }
+#endif
 
 /**
  * @brief This function handles System tick timer.
@@ -193,5 +189,8 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
     HAL_IncTick();
+#if defined(QP_API_VERSION)
+    QK_ISR_EXIT();
+#endif
 }
 #endif // USING_RTOS

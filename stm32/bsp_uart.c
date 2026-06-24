@@ -16,7 +16,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_uart.h"
 #include "bsp_conf.h"
-#include "bsp_dma.h"
+//#include "bsp_dma.h"
 #include "serial.h"
 #include "errno-base.h"
 #include <stdio.h>
@@ -82,60 +82,60 @@ enum
 };
 
 /* Private variables ---------------------------------------------------------*/
-static serial_t serial_dev[UART_INDEX_MAX]; /* 串口设备数组 */
+static Serial_t serial_dev[UART_INDEX_MAX]; /* 串口设备数组 */
 
 /* 串口缓冲区定义 */
 #if defined(BSP_USING_UART1)
-    static uint8_t uart1_rx_buf[UART1_RX_BUF_SIZE]         = {0};
-    static uint8_t uart1_tx_buf[UART1_TX_BUF_SIZE]         = {0};
+    static uint8_t uart1_rx_buf[UART1_RX_BUF_SIZE] = {0};
+    static uint8_t uart1_tx_buf[UART1_TX_BUF_SIZE] = {0};
     static uint8_t uart1_rx_cache_buf[UART1_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART1
 
 #if defined(BSP_USING_UART2)
-    static uint8_t uart2_rx_buf[UART2_RX_BUF_SIZE]              = {0};
-    static uint8_t uart2_tx_buf[UART2_TX_BUF_SIZE]              = {0};
-    static uint8_t uart2_rx_cache_buf[UART2_RX_CACHE_BUF_SIZE]     = {0};
+    static uint8_t uart2_rx_buf[UART2_RX_BUF_SIZE] = {0};
+    static uint8_t uart2_tx_buf[UART2_TX_BUF_SIZE] = {0};
+    static uint8_t uart2_rx_cache_buf[UART2_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART2
 
 #if defined(BSP_USING_UART3)
-    static uint8_t uart3_rx_buf[UART3_RX_BUF_SIZE]              = {0};
-    static uint8_t uart3_tx_buf[UART3_TX_BUF_SIZE]              = {0};
-    static uint8_t uart3_rx_cache_buf[UART3_RX_CACHE_BUF_SIZE]     = {0};
+    static uint8_t uart3_rx_buf[UART3_RX_BUF_SIZE] = {0};
+    static uint8_t uart3_tx_buf[UART3_TX_BUF_SIZE] = {0};
+    static uint8_t uart3_rx_cache_buf[UART3_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART3
 
 #if defined(BSP_USING_UART4)
-    static uint8_t uart4_rx_buf[UART4_RX_BUF_SIZE]              = {0};
-    static uint8_t uart4_tx_buf[UART4_TX_BUF_SIZE]              = {0};
-    static uint8_t uart4_rx_cache_buf[UART4_RX_CACHE_BUF_SIZE]     = {0};
+    static uint8_t uart4_rx_buf[UART4_RX_BUF_SIZE] = {0};
+    static uint8_t uart4_tx_buf[UART4_TX_BUF_SIZE] = {0};
+    static uint8_t uart4_rx_cache_buf[UART4_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART4
 
 #if defined(BSP_USING_UART5)
-    static uint8_t uart5_rx_buf[UART5_RX_BUF_SIZE]              = {0};
-    static uint8_t uart5_tx_buf[UART5_TX_BUF_SIZE]              = {0};
-    static uint8_t uart5_rx_cache_buf[UART5_RX_CACHE_BUF_SIZE]     = {0};
+    static uint8_t uart5_rx_buf[UART5_RX_BUF_SIZE] = {0};
+    static uint8_t uart5_tx_buf[UART5_TX_BUF_SIZE] = {0};
+    static uint8_t uart5_rx_cache_buf[UART5_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART5
 
 #if defined(BSP_USING_UART6)
-    static uint8_t uart6_rx_buf[UART6_RX_BUF_SIZE]              = {0};
-    static uint8_t uart6_tx_buf[UART6_TX_BUF_SIZE]              = {0};
-    static uint8_t uart6_rx_cache_buf[UART6_RX_CACHE_BUF_SIZE]     = {0};
+    static uint8_t uart6_rx_buf[UART6_RX_BUF_SIZE] = {0};
+    static uint8_t uart6_tx_buf[UART6_TX_BUF_SIZE] = {0};
+    static uint8_t uart6_rx_cache_buf[UART6_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART6
 
 #if defined(BSP_USING_UART7)
-    static uint8_t uart7_rx_buf[UART7_RX_BUF_SIZE]              = {0};
-    static uint8_t uart7_tx_buf[UART7_TX_BUF_SIZE]              = {0};
-    static uint8_t uart7_rx_cache_buf[UART7_RX_CACHE_BUF_SIZE]     = {0};
+    static uint8_t uart7_rx_buf[UART7_RX_BUF_SIZE] = {0};
+    static uint8_t uart7_tx_buf[UART7_TX_BUF_SIZE] = {0};
+    static uint8_t uart7_rx_cache_buf[UART7_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART7
 
 #if defined(BSP_USING_UART8)
-    static uint8_t uart8_rx_buf[UART8_RX_BUF_SIZE]              = {0};
-    static uint8_t uart8_tx_buf[UART8_TX_BUF_SIZE]              = {0};
-    static uint8_t uart8_rx_cache_buf[UART8_RX_CACHE_BUF_SIZE]     = {0};
+    static uint8_t uart8_rx_buf[UART8_RX_BUF_SIZE] = {0};
+    static uint8_t uart8_tx_buf[UART8_TX_BUF_SIZE] = {0};
+    static uint8_t uart8_rx_cache_buf[UART8_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART8
 
 #if defined(BSP_USING_LPUART1)
-    static uint8_t lpuart1_rx_buf[LPUART1_RX_BUF_SIZE]          = {0};
-    static uint8_t lpuart1_tx_buf[LPUART1_TX_BUF_SIZE]          = {0};
+    static uint8_t lpuart1_rx_buf[LPUART1_RX_BUF_SIZE] = {0};
+    static uint8_t lpuart1_tx_buf[LPUART1_TX_BUF_SIZE] = {0};
     static uint8_t lpuart1_rx_cache_buf[LPUART1_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_LPUART1
 
@@ -229,10 +229,10 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 };
 
 /* Function prototypes */
-static int stm32_usart_init(serial_t *port);
-static int stm32_uart_tx(serial_t *port, const void *buf, size_t size);
-static int stm32_uart_start_rx(serial_t *port);
-static int stm32_uart_configure(serial_t *port, struct serial_configure *cfg);
+static int stm32_usart_init(Serial_t *port);
+static int stm32_uart_tx(Serial_t *port, const void *buf, size_t size);
+static int stm32_uart_start_rx(Serial_t *port);
+static int stm32_uart_configure(Serial_t *port, struct serial_configure *cfg);
 static void stm32_uart_gpio_init(struct stm32_uart *uartHandle);
 static void stm32_uart_dma_config(struct stm32_uart *uartHandle);
 static bool stm32_uart_tx_is_busy(struct serial *port);
@@ -254,7 +254,7 @@ static const serial_ops_t stm_uart_ops = {
   * @param  port: Pointer to serial device
   * @retval 0 on success, negative error code on failure
   */
-static int stm32_usart_init(serial_t *port)
+static int stm32_usart_init(Serial_t *port)
 {
     struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
     int ret = 0;
@@ -302,7 +302,7 @@ static int stm32_usart_init(serial_t *port)
   * @param  cfg: Pointer to configuration structure
   * @retval 0 on success, negative error code on failure
   */
-static int stm32_uart_configure(serial_t *port, struct serial_configure *cfg)
+static int stm32_uart_configure(Serial_t *port, struct serial_configure *cfg)
 {
     struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
 
@@ -1023,7 +1023,7 @@ static bool stm32_uart_tx_is_busy(struct serial *port)
   * @param  size: Number of bytes to transmit
   * @retval 0 on success, negative error code on failure
   */
-static int stm32_uart_tx(serial_t *port, const void *buf, size_t size)
+static int stm32_uart_tx(Serial_t *port, const void *buf, size_t size)
 {
     struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
     HAL_StatusTypeDef status;
@@ -1056,7 +1056,7 @@ static int stm32_uart_tx(serial_t *port, const void *buf, size_t size)
   * @param  port: Pointer to serial device
   * @retval 0 on success, negative error code on failure
   */
-static int stm32_uart_start_rx(serial_t *port)
+static int stm32_uart_start_rx(Serial_t *port)
 {
     struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
     HAL_StatusTypeDef status;
@@ -1199,7 +1199,7 @@ int BSP_UART_Init(void)
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
     struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
-    serial_t *port = &serial_dev[stm_uart->index];
+    Serial_t *port = &serial_dev[stm_uart->index];
     if (port) {
         Serial_TxIsrHook(port);
     }
@@ -1214,7 +1214,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
-    serial_t *port = &serial_dev[stm_uart->index];
+    Serial_t *port = &serial_dev[stm_uart->index];
     uint16_t process_size;
 
     if (!port) {
@@ -1267,7 +1267,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
     struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
-    serial_t *port = &serial_dev[stm_uart->index];
+    Serial_t *port = &serial_dev[stm_uart->index];
     
     log_d("UART errno code = %d", huart->ErrorCode);
 
