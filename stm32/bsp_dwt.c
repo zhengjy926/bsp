@@ -17,6 +17,10 @@
 #include "bsp_dwt.h"
 #include "bsp_conf.h"
 
+#define  LOG_TAG             "bsp_dwt"
+#define  LOG_LVL             ELOG_LVL_DEBUG
+#include "elog.h"
+
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
@@ -24,27 +28,25 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-// 用于存储溢出次数，结合CYCCNT构成一个64位计数器
-static volatile uint64_t g_dwt_overflow_cycles = 0;
-// 上一次读取的CYCCNT值，用于判断溢出
-static volatile uint32_t g_dwt_last_cyccnt = 0;
+static uint32_t cycles_per_us = 0U;
+static uint32_t max_safe_us = 0U;
 
 /* Exported variables  -------------------------------------------------------*/
 
 /* Private function prototypes -----------------------------------------------*/
 
 /* Exported functions --------------------------------------------------------*/
-int32_t bsp_dwt_init(void)
+void BSP_DWT_Init(void)
 {
-    /* 检查内核是否支持DWT, Cortex-M0/M0+ 不支持 */ 
 #if (__CORTEX_M < 3)
-    return -1; // 不支持
+    #error "DWT is not supported on this core"
 #endif
-    
     DCB->DEMCR |= DCB_DEMCR_TRCENA_Msk;
     DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
-    
-    return 0;
+    DWT->CYCCNT = 0U;
+
+    cycles_per_us = SystemCoreClock / 1000000;
+    max_safe_us = 0xFFFFFFFFU / cycles_per_us;
 }
 
 /**
@@ -52,64 +54,30 @@ int32_t bsp_dwt_init(void)
  * @param  None
  * @retval Current cycle count.
  */
-uint32_t bsp_dwt_get_tick(void)
+uint32_t BSP_DWT_GetTick(void)
 {
     return DWT->CYCCNT;
 }
 
-void bsp_dwt_update_overflow_counter(void)
+void BSP_DWT_DelayUs(uint32_t time_us)
 {
-    uint32_t current_cyccnt = DWT->CYCCNT;
-    
-    /* 检查是否发生溢出 (当前值小于上一次的值) */
-    if (current_cyccnt < g_dwt_last_cyccnt)
-    {
-        // 0x100000000ULL 表示 2^32
-        g_dwt_overflow_cycles += 0x100000000ULL; 
-    }
-    
-    g_dwt_last_cyccnt = current_cyccnt;
-}
-
-double bsp_dwt_get_seconds(void)
-{
-    /* 为保证读取的原子性，临时禁用中断 */
-    uint32_t primask = __get_PRIMASK();
-    __disable_irq();
-
-    uint32_t current_cyccnt = DWT->CYCCNT;
-    uint64_t overflow_cycles = g_dwt_overflow_cycles;
-    
-    /* 再次检查溢出，防止在读取 g_dwt_overflow_cycles 和 DWT->CYCCNT 之间
-     * 发生 SysTick 中断并且DWT恰好溢出。
-     */
-    if (current_cyccnt < g_dwt_last_cyccnt)
-    {
-        overflow_cycles += 0x100000000ULL;
-    }
-
-    __set_PRIMASK(primask);
-    /* 恢复中断状态 */
-
-    uint64_t total_cycles = overflow_cycles + current_cyccnt;
-
-    return (double)total_cycles / SystemCoreClock;
-}
-
-void bsp_dwt_delay_us(uint32_t time_us)
-{
+    /* 使用断言保护，防止 time_us 过大导致溢出 */
+    ELOG_ASSERT(time_us <= max_safe_us);
     uint32_t ticks_start = DWT->CYCCNT;
+    uint32_t ticks_delay = time_us * cycles_per_us;
     
-	uint32_t ticks_delay = time_us * (SystemCoreClock / 1000000);
-
-    while ((DWT->CYCCNT - ticks_start) < ticks_delay)
-    {
-    }
+    while ((DWT->CYCCNT - ticks_start) < ticks_delay);
 }
 
-void bsp_dwt_delay_ms(uint32_t time_ms)
+void BSP_DWT_DelayMs(uint32_t time_ms)
 {
-    bsp_dwt_delay_us(1000 * time_ms);
+    /* 使用断言保护，防止 1000 * time_ms 在 32 位下溢出 */
+    /* 0xFFFFFFFF / 1000 = 4294967，最大安全延时约 4294 秒 */
+    ELOG_ASSERT(time_ms <= (0xFFFFFFFFU / 1000U));
+
+    while (time_ms--) {
+        BSP_DWT_DelayUs(1000U);
+    }
 }
 /* Private functions ---------------------------------------------------------*/
 

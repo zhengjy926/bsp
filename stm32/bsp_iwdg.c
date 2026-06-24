@@ -27,8 +27,8 @@
 #include <stddef.h>
 
 #define  LOG_TAG             "bsp_iwdg"
-#define  LOG_LVL             3
-#include "log.h"
+#define  LOG_LVL             ELOG_LVL_DEBUG
+#include "elog.h"
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -64,7 +64,7 @@ static int stm32_iwdg_start(struct wdg_device *wdg)
 #endif
     status = HAL_IWDG_Init(&hiwdg);
     if (status != HAL_OK) {
-        return -EIO;
+        return -ERR_IO;
     }
     
     return 0;
@@ -95,7 +95,7 @@ static int stm32_iwdg_set_timeout(struct wdg_device *wdg, uint32_t timeout)
         stm32_iwdg_feed(wdg);
     } else {
         wdg->timeout = old_timeout;  /* 失败则设备状态不变 */
-        ret = -EIO;
+        ret = -ERR_IO;
     }
     
     return ret;

@@ -1,31 +1,47 @@
 /**
   ******************************************************************************
-  * @file        : bsp_hrtim.h
+  * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
+  * @file        : xxx.h
   * @author      : ZJY
   * @version     : V1.0
-  * @date        : 2025-10-16
+  * @data        : 20xx-xx-xx
   * @brief       : 
-  * @attention   : None
+  * @attattention: None
   ******************************************************************************
   * @history     :
-  *         V1.0 : 1.Initial version
+  *         V1.0 : 1.xxx
+  *
+  *
   ******************************************************************************
   */
-#ifndef __BSP_HRTIM_H__
-#define __BSP_HRTIM_H__
+#ifndef __STM32_DMA_H__
+#define __STM32_DMA_H__
 
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include <stdint.h>
+#include "bsp_conf.h"
 
 /* Exported define -----------------------------------------------------------*/
-#define HRTIM_RESOLUTION        (0.68f)
+#if defined(STM32F4)
+    #define DMA_INSTANCE_TYPE   DMA_Stream_TypeDef
+#else
+    #define DMA_INSTANCE_TYPE   DMA_Channel_TypeDef   
+#endif
 
-#define HRTIM_BUSTMODE_FREQ_HZ  (332031u)
+struct dma_config {
+    DMA_INSTANCE_TYPE *Instance;
+    DMA_HandleTypeDef hdma;
+    IRQn_Type dma_irq;
 
+#if defined(STM32F429xx)
+    uint32_t channel;
+#elif defined(STM32G474xx)
+    uint32_t request;
+#endif
+};
 /* Exported typedef ----------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
@@ -33,13 +49,11 @@
 /* Exported variable prototypes ----------------------------------------------*/
 
 /* Exported function prototypes ----------------------------------------------*/
-int bsp_hrtim_init(void);
-uint16_t tim_arr_from_ms(uint32_t ms);
-uint16_t tim_arr_from_us(uint32_t us);
+
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* __BSP_HRTIM_H__ */
+#endif /* __STM32_DMA_H__ */
 

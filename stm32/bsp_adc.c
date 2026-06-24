@@ -21,12 +21,12 @@
 #include "board.h"
 
 #define  LOG_TAG             "bsp_adc"
-#define  LOG_LVL             4
-#include "log.h"
+#define  LOG_LVL             ELOG_LVL_DEBUG
+#include "elog.h"
 
 /* Private typedef -----------------------------------------------------------*/
 struct stm32_adc {
-    ADC_HandleTypeDef huart;
+    ADC_HandleTypeDef hadc;
     DMA_HandleTypeDef hdma_adc;
     char *name;
     uint8_t *dma_buf;

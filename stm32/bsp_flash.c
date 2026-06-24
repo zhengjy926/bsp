@@ -21,8 +21,8 @@
 #include <string.h>
 
 #define  LOG_TAG             "bsp_flash"
-#define  LOG_LVL             4
-#include "log.h"
+#define  LOG_LVL             ELOG_LVL_DEBUG
+#include "elog.h"
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -128,14 +128,14 @@ static int bsp_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
 
     /* 参数校验 */
     if (start_addr < STM32_FLASH_START_ADDR || end_addr > STM32_FLASH_END_ADDR) {
-        LOG_E("Flash erase address out of range: 0x%08X - 0x%08X", start_addr, end_addr);
-        return -EINVAL;
+        log_e("Flash erase address out of range: 0x%08X - 0x%08X", start_addr, end_addr);
+        return -ERR_INVAL;
     }
 
     /* 解锁Flash */
     if (HAL_FLASH_Unlock() != HAL_OK) {
-        LOG_E("Flash unlock failed");
-        return -EIO;
+        log_e("Flash unlock failed");
+        return -ERR_IO;
     }
 
     /* 根据芯片系列选择擦除方式 */
@@ -152,7 +152,7 @@ static int bsp_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
     erase_config.NbPages = (len + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE;
 #endif
 
-#else  /* SOC_SERIES_STM32F4 */
+#else
     erase_config.TypeErase = FLASH_TYPEERASE_SECTORS;
     erase_config.Sector = GetSector(start_addr);
     erase_config.NbSectors = GetSector(end_addr) - GetSector(start_addr) + 1;
@@ -166,8 +166,8 @@ static int bsp_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
     HAL_FLASH_Lock();
 
     if (status != HAL_OK) {
-        LOG_E("Flash erase failed, status=%d, PageError=%u", status, PageError);
-        return -EIO;
+        log_e("Flash erase failed, status=%d, PageError=%u", status, PageError);
+        return -ERR_IO;
     }
 
     return 0;
@@ -190,9 +190,9 @@ static int bsp_flash_read(struct mtd_info *mtd, mtd_addr_t from, size_t len,
     /* 参数校验 */
     if (start_addr < STM32_FLASH_START_ADDR || 
         start_addr + len - 1 > STM32_FLASH_END_ADDR) {
-        LOG_E("Flash read address out of range: 0x%08X, len=%zu", start_addr, len);
+        log_e("Flash read address out of range: 0x%08X, len=%zu", start_addr, len);
         *retlen = 0;
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     /* Flash读取不需要解锁，直接内存拷贝 */
@@ -223,14 +223,14 @@ static int bsp_flash_write(struct mtd_info *mtd, mtd_addr_t to, size_t len,
     /* 参数校验 */
     if (start_addr < STM32_FLASH_START_ADDR || 
         start_addr + len - 1 > STM32_FLASH_END_ADDR) {
-        LOG_E("Flash write address out of range: 0x%08X, len=%zu", start_addr, len);
-        return -EINVAL;
+        log_e("Flash write address out of range: 0x%08X, len=%zu", start_addr, len);
+        return -ERR_INVAL;
     }
 
     /* 解锁Flash */
     if (HAL_FLASH_Unlock() != HAL_OK) {
-        LOG_E("Flash unlock failed");
-        return -EIO;
+        log_e("Flash unlock failed");
+        return -ERR_IO;
     }
 
     /* 根据芯片系列选择编程方式 */
@@ -243,15 +243,15 @@ static int bsp_flash_write(struct mtd_info *mtd, mtd_addr_t to, size_t len,
         memcpy(&data_to_write, buf + i, chunk_len);
         
         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, start_addr + i, data_to_write) != HAL_OK) {
-            LOG_E("Flash program failed at addr=0x%08X", start_addr + i);
-            ret = -EIO;
+            log_e("Flash program failed at addr=0x%08X", start_addr + i);
+            ret = -ERR_IO;
             break;
         }
         
         written += chunk_len;
     }
 
-#elif defined(SOC_SERIES_STM32F4)
+#elif defined(STM32F4)
     /* F4按字（4字节）编程 */
     for (size_t i = 0; i < len; i += 4) {
         uint32_t data_to_write = 0xFFFFFFFF;
@@ -260,8 +260,8 @@ static int bsp_flash_write(struct mtd_info *mtd, mtd_addr_t to, size_t len,
         memcpy(&data_to_write, buf + i, chunk_len);
         
         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, start_addr + i, data_to_write) != HAL_OK) {
-            LOG_E("Flash program failed at addr=0x%08X", start_addr + i);
-            ret = -EIO;
+            log_e("Flash program failed at addr=0x%08X", start_addr + i);
+            ret = -ERR_IO;
             break;
         }
         
@@ -277,8 +277,8 @@ static int bsp_flash_write(struct mtd_info *mtd, mtd_addr_t to, size_t len,
         memcpy(&data_to_write, buf + i, chunk_len);
         
         if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, start_addr + i, data_to_write) != HAL_OK) {
-            LOG_E("Flash program failed at addr=0x%08X", start_addr + i);
-            ret = -EIO;
+            log_e("Flash program failed at addr=0x%08X", start_addr + i);
+            ret = -ERR_IO;
             break;
         }
         
@@ -308,7 +308,7 @@ struct mtd_info bsp_flash_info = {
 #if defined(STM32F1)
     .writesize = 2,          /* F1: 半字（2字节） */
     .writesize_shift = 1,
-#elif defined(SOC_SERIES_STM32F4)
+#elif defined(STM32F4)
     .writesize = 4,          /* F4: 字（4字节） */
     .writesize_shift = 2,
 #elif defined(STM32G4)

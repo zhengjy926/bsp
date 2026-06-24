@@ -13,8 +13,8 @@
   *
   ******************************************************************************
   */
-#ifndef __BSP_USART_H__
-#define __BSP_USART_H__
+#ifndef BSP_UART_H__
+#define BSP_UART_H__
 
 #ifdef __cplusplus
  extern "C" {
@@ -27,11 +27,11 @@
 /* Exported macro ------------------------------------------------------------*/
 /* Exported variable prototypes ----------------------------------------------*/
 /* Exported function prototypes ----------------------------------------------*/
-int bsp_uart_init(void);
+int BSP_UART_Init(void);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* __BSP_USART_H__ */
+#endif /* BSP_UART_H__ */
 

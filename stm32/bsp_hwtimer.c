@@ -84,7 +84,7 @@ static int _stm32_hwtimer_init(uint32_t timer_id)
     htim = _get_timer_handle(timer_id);
     if (htim == NULL)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     /* 如果定时器已经初始化，先反初始化 */
@@ -103,7 +103,7 @@ static int _stm32_hwtimer_init(uint32_t timer_id)
     hal_ret = HAL_TIM_Base_Init(htim);
     if (hal_ret != HAL_OK)
     {
-        return -EIO;
+        return -ERR_IO;
     }
     
     /* 配置主输出触发 */
@@ -113,7 +113,7 @@ static int _stm32_hwtimer_init(uint32_t timer_id)
     if (hal_ret != HAL_OK)
     {
         (void)HAL_TIM_Base_DeInit(htim);
-        return -EIO;
+        return -ERR_IO;
     }
     
     /* 清除中断标志，但不使能中断（由start函数使能） */
@@ -143,7 +143,7 @@ static int _stm32_hwtimer_deinit(uint32_t timer_id)
     htim = _get_timer_handle(timer_id);
     if (htim == NULL)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     /* 停止定时器 */
@@ -153,7 +153,7 @@ static int _stm32_hwtimer_deinit(uint32_t timer_id)
     hal_ret = HAL_TIM_Base_DeInit(htim);
     if (hal_ret != HAL_OK)
     {
-        return -EIO;
+        return -ERR_IO;
     }
     
     return 0;
@@ -175,12 +175,12 @@ static int _stm32_hwtimer_start(uint32_t timer_id, uint32_t period_us, hwtimer_m
     htim = _get_timer_handle(timer_id);
     if (htim == NULL)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     if (period_us == 0U)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     /* 配置定时器周期 */
@@ -211,7 +211,7 @@ static int _stm32_hwtimer_start(uint32_t timer_id, uint32_t period_us, hwtimer_m
     if (hal_ret != HAL_OK)
     {
         __HAL_TIM_DISABLE_IT(htim, TIM_IT_UPDATE);
-        return -EIO;
+        return -ERR_IO;
     }
     
     return 0;
@@ -230,7 +230,7 @@ static int _stm32_hwtimer_stop(uint32_t timer_id)
     htim = _get_timer_handle(timer_id);
     if (htim == NULL)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     /* 禁用中断 */
@@ -240,7 +240,7 @@ static int _stm32_hwtimer_stop(uint32_t timer_id)
     hal_ret = HAL_TIM_Base_Stop_IT(htim);
     if (hal_ret != HAL_OK)
     {
-        return -EIO;
+        return -ERR_IO;
     }
     
     /* 清除中断标志 */
@@ -264,12 +264,12 @@ static int _stm32_hwtimer_set_period(uint32_t timer_id, uint32_t period_us)
     htim = _get_timer_handle(timer_id);
     if (htim == NULL)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     if (period_us == 0U)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     /* 检查定时器是否正在运行 */
@@ -508,14 +508,14 @@ static int _config_timer_period(TIM_HandleTypeDef *htim, uint32_t period_us)
     
     if (htim == NULL)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     /* 获取定时器时钟频率 */
     fclk_hz = _get_timer_clock_freq();
     if (fclk_hz == 0U)
     {
-        return -EIO;
+        return -ERR_IO;
     }
     
     /* 转换为纳秒 */
@@ -525,7 +525,7 @@ static int _config_timer_period(TIM_HandleTypeDef *htim, uint32_t period_us)
     ret = tim_pick_psc_arr_from_ns(fclk_hz, period_ns, &psc, &arr, NULL);
     if (ret < 0)
     {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     /* 配置定时器 */
@@ -535,7 +535,7 @@ static int _config_timer_period(TIM_HandleTypeDef *htim, uint32_t period_us)
     hal_ret = HAL_TIM_Base_Init(htim);
     if (hal_ret != HAL_OK)
     {
-        return -EIO;
+        return -ERR_IO;
     }
     
     return 0;

@@ -14,7 +14,7 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "bsp_usart.h"
+#include "bsp_uart.h"
 #include "bsp_conf.h"
 #include "bsp_dma.h"
 #include "serial.h"
@@ -22,8 +22,8 @@
 #include <stdio.h>
 
 #define  LOG_TAG             "bsp_uart"
-#define  LOG_LVL             4
-#include "log.h"
+#define  LOG_LVL             ELOG_LVL_DEBUG
+#include "elog.h"
 
 #if defined(HAL_UART_MODULE_ENABLED)
 
@@ -283,13 +283,13 @@ static int stm32_usart_init(serial_t *port)
 #if defined(STM32G4)
     /* Configure FIFO thresholds for STM32G4 series */
     if (HAL_UARTEx_SetTxFifoThreshold(&stm_uart->huart, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK) {
-        return -EIO;
+        return -ERR_IO;
     }
     if (HAL_UARTEx_SetRxFifoThreshold(&stm_uart->huart, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK) {
-        return -EIO;
+        return -ERR_IO;
     }
     if (HAL_UARTEx_DisableFifoMode(&stm_uart->huart) != HAL_OK) {
-        return -EIO;
+        return -ERR_IO;
     }
 #endif
     stm32_uart_start_rx(port);
@@ -307,7 +307,7 @@ static int stm32_uart_configure(serial_t *port, struct serial_configure *cfg)
     struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
 
     if (!port || !cfg || !stm_uart) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     /* Configure baud rate */
@@ -322,7 +322,7 @@ static int stm32_uart_configure(serial_t *port, struct serial_configure *cfg)
             stm_uart->huart.Init.WordLength = UART_WORDLENGTH_9B;
             break;
         default:
-            return -EINVAL;
+            return -ERR_INVAL;
     }
 
     /* Configure stop bits */
@@ -334,7 +334,7 @@ static int stm32_uart_configure(serial_t *port, struct serial_configure *cfg)
             stm_uart->huart.Init.StopBits = UART_STOPBITS_2;
             break;
         default:
-            return -EINVAL;
+            return -ERR_INVAL;
     }
 
     /* Configure parity */
@@ -349,7 +349,7 @@ static int stm32_uart_configure(serial_t *port, struct serial_configure *cfg)
             stm_uart->huart.Init.Parity = UART_PARITY_EVEN;
             break;
         default:
-            return -EINVAL;
+            return -ERR_INVAL;
     }
 
     /* Configure flow control */
@@ -361,7 +361,7 @@ static int stm32_uart_configure(serial_t *port, struct serial_configure *cfg)
 
     /* Apply configuration */
     if (HAL_UART_Init(&stm_uart->huart) != HAL_OK) {
-        return -EIO;
+        return -ERR_IO;
     }
 
     return 0;
@@ -379,7 +379,7 @@ static inline void stm32_uart_rx_dma_config(struct stm32_uart *uartHandle)
     uartHandle->hdma_uart_rx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
 
     if (HAL_DMA_Init(&uartHandle->hdma_uart_rx) != HAL_OK) {
-        LOG_E("HAL_DMA_Init errno");
+        log_e("HAL_DMA_Init errno");
         while(1);
     }
     __HAL_LINKDMA(&uartHandle->huart, hdmarx, uartHandle->hdma_uart_rx);
@@ -397,7 +397,7 @@ static inline void stm32_uart_tx_dma_config(struct stm32_uart *uartHandle)
     uartHandle->hdma_uart_tx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
 
     if (HAL_DMA_Init(&uartHandle->hdma_uart_tx) != HAL_OK) {
-        LOG_E("HAL_DMA_Init errno");
+        log_e("HAL_DMA_Init errno");
         while(1);
     }
     __HAL_LINKDMA(&uartHandle->huart, hdmatx, uartHandle->hdma_uart_tx);
@@ -686,7 +686,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -722,7 +722,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -758,7 +758,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -796,7 +796,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -832,7 +832,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Uart5ClockSelection = RCC_UART5CLKSOURCE_PCLK1;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -868,7 +868,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Usart6ClockSelection = RCC_USART6CLKSOURCE_PCLK2;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -904,7 +904,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Uart7ClockSelection = RCC_UART7CLKSOURCE_PCLK1;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -940,7 +940,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Uart8ClockSelection = RCC_UART8CLKSOURCE_PCLK1;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -976,7 +976,7 @@ static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
         PeriphClkInit.Lpuart1ClockSelection = RCC_LPUART1CLKSOURCE_PCLK1;
         if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
         {
-            LOG_E("HAL_RCCEx_PeriphCLKConfig errno");
+            log_e("HAL_RCCEx_PeriphCLKConfig errno");
             while(1);
         }
 #endif
@@ -1030,11 +1030,11 @@ static int stm32_uart_tx(serial_t *port, const void *buf, size_t size)
     const uint8_t *data = (const uint8_t*)buf;
 
     if (!port || !buf || size == 0 || !stm_uart) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     if (size > UINT16_MAX) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     if (stm_uart->huart.hdmatx != NULL) {
@@ -1044,8 +1044,8 @@ static int stm32_uart_tx(serial_t *port, const void *buf, size_t size)
     }
 
     if (status != HAL_OK) {
-        LOG_E("HAL_UART_Transmit_DMA/IT failed");
-        return -EIO;
+        log_e("HAL_UART_Transmit_DMA/IT failed");
+        return -ERR_IO;
     }
 
     return 0;
@@ -1062,7 +1062,7 @@ static int stm32_uart_start_rx(serial_t *port)
     HAL_StatusTypeDef status;
 
     if (!port || !stm_uart) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     // 重置位置计数器
@@ -1080,8 +1080,8 @@ static int stm32_uart_start_rx(serial_t *port)
     }
 
     if (status != HAL_OK) {
-        LOG_E("HAL_UART_Receive_DMA/IT failed");
-        return -EIO;
+        log_e("HAL_UART_Receive_DMA/IT failed");
+        return -ERR_IO;
     }
 
     return 0;
@@ -1091,7 +1091,7 @@ static int stm32_uart_start_rx(serial_t *port)
   * @brief  Initialize STM32 USART hardware
   * @retval 0 on success, negative error code on failure
   */
-int bsp_uart_init(void)
+int BSP_UART_Init(void)
 {
     int ret = 0;
 
@@ -1100,7 +1100,7 @@ int bsp_uart_init(void)
         serial_dev[i].prv_data = &stm_uart_drv[i];
         serial_dev[i].ops = &stm_uart_ops;
 
-        ret = hw_serial_register(&serial_dev[i], stm_uart_drv[i].name);
+        ret = Serial_Register(&serial_dev[i], stm_uart_drv[i].name);
         if (ret != 0) {
             return ret;
         }
@@ -1201,7 +1201,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
     serial_t *port = &serial_dev[stm_uart->index];
     if (port) {
-        hw_serial_tx_done_isr(port);
+        Serial_TxIsrHook(port);
     }
 }
 
@@ -1241,7 +1241,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     {
         // 半满中断 - 处理前半部分数据
         if (process_size > 0) {
-            hw_serial_rx_done_isr(port, stm_uart->rx_cache_buf + stm_uart->last_pos, process_size);
+            Serial_RxIsrHook(port, stm_uart->rx_cache_buf + stm_uart->last_pos, process_size);
             stm_uart->last_pos = Size;  // 更新已处理位置
         }
     }
@@ -1250,7 +1250,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     {
         // 传输完成或空闲中断 - 处理剩余数据
         if (process_size > 0) {
-            hw_serial_rx_done_isr(port, stm_uart->rx_cache_buf + stm_uart->last_pos, process_size);
+            Serial_RxIsrHook(port, stm_uart->rx_cache_buf + stm_uart->last_pos, process_size);
         }
 
         // 重置位置计数器并重新启动接收
@@ -1269,7 +1269,7 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
     serial_t *port = &serial_dev[stm_uart->index];
     
-    LOG_D("UART errno code = %d", huart->ErrorCode);
+    log_d("UART errno code = %d", huart->ErrorCode);
 
     /* 重新启动接收 */
     stm32_uart_start_rx(port);

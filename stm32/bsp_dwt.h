@@ -1,27 +1,25 @@
 /**
   ******************************************************************************
-  * @copyright   : Copyright To Hangzhou Dinova EP Technology Co.,Ltd
-  * @file        : bsp_gpio.h
+  * @file        : bsp_dwt.h
   * @author      : ZJY
   * @version     : V1.0
   * @date        : 2025-10-16
-  * @brief       : STM32 GPIO driver header file
+  * @brief       : STM32 DWT driver header file
   * @attention   : None
   ******************************************************************************
   * @history     :
   *         V1.0 : 1.Initial version
-  *
-  *
   ******************************************************************************
   */
-#ifndef __BSP_GPIO_H__
-#define __BSP_GPIO_H__
+#ifndef __BSP_DWT_H__
+#define __BSP_DWT_H__
 
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdint.h>
 
 /* Exported define -----------------------------------------------------------*/
 
@@ -32,11 +30,14 @@
 /* Exported variable prototypes ----------------------------------------------*/
 
 /* Exported function prototypes ----------------------------------------------*/
-void BSP_GPIO_Init(void);
+void     BSP_DWT_Init(void);
+uint32_t BSP_DWT_GetTick(void);
+void     BSP_DWT_DelayUs(uint32_t time_us);
+void     BSP_DWT_DelayMs(uint32_t time_ms);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* __BSP_GPIO_H__ */
+#endif /* __BSP_DWT_H__ */
 

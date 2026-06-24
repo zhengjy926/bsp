@@ -21,7 +21,7 @@
 
 #if defined(STM32F1)
     #include "stm32f1xx.h"
-#elif defined(SOC_SERIES_STM32F4)
+#elif defined(STM32F4)
     #include "stm32f4xx.h"
 #elif defined(STM32G4)
     #include "stm32g4xx.h"
@@ -35,8 +35,8 @@
 #endif // USING_RTOS
 
 #define  LOG_TAG             "bsp_it"
-#define  LOG_LVL             3
-#include "log.h"
+#define  LOG_LVL             ELOG_LVL_DEBUG
+#include "elog.h"
 
 typedef struct
 {
@@ -83,19 +83,19 @@ void HardFault_C(uint32_t *sp, uint32_t exc_lr)
 
     // 3) 这里你可以用 RTT/UART 打印 g_fault，或写入备份 RAM/Flash 做崩溃日志
     //    调试阶段：直接在这里打断点，然后看 g_fault 的值
-    LOG_E("=== HardFault Detected ===");
-    LOG_E("PC (Addr): 0x%08X", g_fault.pc);   // 崩溃指令地址
-    LOG_E("LR (Call): 0x%08X", g_fault.lr);   // 调用者地址
-    LOG_E("CFSR     : 0x%08X", g_fault.cfsr); // 核心故障状态寄存器 (最重要)
-    LOG_E("HFSR     : 0x%08X", g_fault.hfsr);
-    LOG_E("BFAR     : 0x%08X", g_fault.bfar); // 如果是总线错误，这里是访问的错误地址
-    LOG_E("MMFAR    : 0x%08X", g_fault.mmfar);// 如果是存储错误，这里是访问的错误地址
+    log_e("=== HardFault Detected ===");
+    log_e("PC (Addr): 0x%08X", g_fault.pc);   // 崩溃指令地址
+    log_e("LR (Call): 0x%08X", g_fault.lr);   // 调用者地址
+    log_e("CFSR     : 0x%08X", g_fault.cfsr); // 核心故障状态寄存器 (最重要)
+    log_e("HFSR     : 0x%08X", g_fault.hfsr);
+    log_e("BFAR     : 0x%08X", g_fault.bfar); // 如果是总线错误，这里是访问的错误地址
+    log_e("MMFAR    : 0x%08X", g_fault.mmfar);// 如果是存储错误，这里是访问的错误地址
     
-    LOG_E("=== Stack Dump ===");
+    log_e("=== Stack Dump ===");
     // 打印 SP 指针后的 16 个字 (64字节)
     // 这里面很可能包含“父函数”的返回地址 (0x08xxxxxx)
     for (int i = 0; i < 16; i++) {
-        LOG_E("SP + %02d : 0x%08X", i*4, sp[i]);
+        log_e("SP + %02d : 0x%08X", i*4, sp[i]);
     }
 
     while (1) {

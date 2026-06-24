@@ -1,28 +1,31 @@
 /**
   ******************************************************************************
-  * @file        : bsp_dwt.h
+  * @file        : bsp_sram.h
   * @author      : ZJY
   * @version     : V1.0
   * @date        : 2025-10-16
-  * @brief       : STM32 DWT driver header file
+  * @brief       : 
   * @attention   : None
   ******************************************************************************
   * @history     :
   *         V1.0 : 1.Initial version
   ******************************************************************************
   */
-#ifndef __BSP_DWT_H__
-#define __BSP_DWT_H__
+#ifndef __BSP_SRAM_H__
+#define __BSP_SRAM_H__
 
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include <stdint.h>
 
 /* Exported define -----------------------------------------------------------*/
-
+#if defined(__clang__) || defined(__CC_ARM)
+  #define EXTSRAM __attribute__((section("EXTSRAM"), aligned(4)))
+#else
+  #define EXTSRAM
+#endif
 /* Exported typedef ----------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
@@ -30,15 +33,12 @@
 /* Exported variable prototypes ----------------------------------------------*/
 
 /* Exported function prototypes ----------------------------------------------*/
-int32_t bsp_dwt_init(void);
-void    bsp_dwt_update_overflow_counter(void);
-double  bsp_dwt_get_seconds(void);
-void    bsp_dwt_delay_us(uint32_t time_us);
-void    bsp_dwt_delay_ms(uint32_t time_ms);
+int bsp_sram_init(void);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* __BSP_DWT_H__ */
+#endif /* __BSP_SRAM_H__ */
+
 

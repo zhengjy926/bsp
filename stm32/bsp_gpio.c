@@ -21,7 +21,7 @@
 #include "bsp_conf.h"
 #include <string.h>
 
-#include "log.h"
+#include "elog.h"
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -46,6 +46,15 @@
 
 /* EXTI NVIC preemption priority (must match HAL_NVIC_SetPriority in irq_enable). */
 #define BSP_GPIO_EXTI_IRQ_PRIORITY    (5U)
+
+/* EXTI IMR/EMR register name differs between STM32 families. */
+#if defined(EXTI_IMR1_IM0)
+#define IMR_REG    IMR1
+#define EMR_REG    EMR1
+#else
+#define IMR_REG    IMR
+#define EMR_REG    EMR
+#endif
 
 /* Private variables ---------------------------------------------------------*/
 static GPIO_TypeDef * const gpio_ports[] = {
@@ -241,14 +250,12 @@ static struct pin_irq_hdr pin_irq_hdr_tab[] = {
 };
 
 /* It is used to track which EXTI lines have been configured by HAL_GPIO_Init */
-static uint32_t pin_irq_hw_mask = 0;
+static uint32_t irq_initialed_mask = 0;
 
 /* Exported variables  -------------------------------------------------------*/
 
 /* Private function prototypes -----------------------------------------------*/
 static void    STM32_GPIO_ClkEnable(GPIO_TypeDef *port);
-static void    STM32_GPIO_IrqNvicDisableIfUnused(uint32_t pin_index);
-static void    STM32_GPIO_EXTI_IMR_Disable(uint32_t pin_index, uint32_t pin_mask);
 static int32_t STM32_GPIO_GetPinId(const char *name, uint8_t *pin_id);
 
 /* Exported functions --------------------------------------------------------*/
@@ -348,7 +355,7 @@ static int32_t STM32_GPIO_SetMode(uint8_t pin_id, PIN_Mode_e mode, PIN_Pull_e pu
     uint16_t          pin_mask;
 
     if (pin_id >= GPIO_MAX_PINS_NUM) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     port     = gpio_ports[GET_PORT_IDX(pin_id)];
@@ -357,7 +364,7 @@ static int32_t STM32_GPIO_SetMode(uint8_t pin_id, PIN_Mode_e mode, PIN_Pull_e pu
     STM32_GPIO_ClkEnable(port);
 
     /* Configure GPIO_InitStructure */
-    GPIO_InitStruct.Pin   = pin_mask;
+    GPIO_InitStruct.Pin   = (uint32_t)pin_mask;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
     if (mode == PIN_OUTPUT_PP) {
@@ -389,7 +396,7 @@ static int32_t STM32_GPIO_SetMode(uint8_t pin_id, PIN_Mode_e mode, PIN_Pull_e pu
 static int32_t STM32_GPIO_Write(uint8_t pin_id, uint8_t value)
 {
     if (pin_id >= GPIO_MAX_PINS_NUM) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     GPIO_TypeDef* port     = gpio_ports[GET_PORT_IDX(pin_id)];
@@ -407,12 +414,12 @@ static int32_t STM32_GPIO_Write(uint8_t pin_id, uint8_t value)
  * @brief Read digital value from GPIO pin
  * @param pin_id Pin identifier
  * @param value Pointer to the value to store the read value
- * @return 0 on success, -EINVAL if pin id is out-of-bounds
+ * @return 0 on success, -ERR_INVAL if pin id is out-of-bounds
  */
 static int32_t STM32_GPIO_Read(uint8_t pin_id, uint8_t *value)
 {
     if (pin_id >= GPIO_MAX_PINS_NUM) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     GPIO_TypeDef* port     = gpio_ports[GET_PORT_IDX(pin_id)];
@@ -432,20 +439,20 @@ static int32_t STM32_GPIO_Read(uint8_t pin_id, uint8_t *value)
  * @param event Interrupt trigger event (RISING/FALLING/RISING_FALLING)
  * @param hdr Interrupt handler function
  * @param args Argument passed to the interrupt handler
- * @return 0 on success, -ENOSYS if operation is not supported
+ * @return 0 on success, -ERR_NOSYS if operation is not supported
  */
 static int32_t STM32_GPIO_AttachIrq(uint8_t pin_id, PIN_Event_e event, void (*hdr)(void *args), void *args)
 {
     if (pin_id >= GPIO_MAX_PINS_NUM) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
     
     uint32_t pin_index = PIN_GET_PIN_IDX(pin_id);
     
     if (pin_irq_hdr_tab[pin_index].pin != -1)
     {
-        LOG_W("Pin %d already has an interrupt handler", pin_id);
-        return -EBUSY;
+        log_w("Pin %d already has an interrupt handler", pin_id);
+        return -ERR_BUSY;
     }
     pin_irq_hdr_tab[pin_index].pin   = pin_id;
     pin_irq_hdr_tab[pin_index].hdr   = hdr;
@@ -457,16 +464,16 @@ static int32_t STM32_GPIO_AttachIrq(uint8_t pin_id, PIN_Event_e event, void (*hd
 /**
  * @brief Detach interrupt handler from GPIO pin
  * @param pin_id Pin identifier
- * @return 0 on success, -ENOSYS if operation is not supported
+ * @return 0 on success, -ERR_NOSYS if operation is not supported
  */
 static int32_t STM32_GPIO_DeattachIrq(uint8_t pin_id)
 {
     if (pin_id >= GPIO_MAX_PINS_NUM) { // If pin id is out-of-bounds
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
-    uint32_t pin_index = PIN_GET_PIN_IDX(pin_id);
-    uint32_t pin_mask  = (uint32_t)PIN_MASK(pin_id);
+    uint8_t pin_index  = PIN_GET_PIN_IDX(pin_id);
+    uint16_t pin_mask  = PIN_MASK(pin_id);
     uint32_t level;
 
     if (pin_irq_hdr_tab[pin_index].pin == -1) {
@@ -476,12 +483,8 @@ static int32_t STM32_GPIO_DeattachIrq(uint8_t pin_id)
     level = __get_PRIMASK();
     __disable_irq();
 
-    if ((EXTI->IMR & pin_mask) != 0U)
-    {
-        STM32_GPIO_EXTI_IMR_Disable(pin_index, pin_mask);
-    }
-
-    pin_irq_hw_mask &= ~pin_mask;
+    EXTI->IMR_REG &= ~pin_mask;
+    irq_initialed_mask &= ~pin_mask;
 
     /* Reset to the initial state. */
     pin_irq_hdr_tab[pin_index].pin = -1;
@@ -494,132 +497,56 @@ static int32_t STM32_GPIO_DeattachIrq(uint8_t pin_id)
 }
 
 /**
- * @brief Disable NVIC entry when no EXTI line on the shared vector remains enabled.
- * @param pin_index EXTI line index (0..15).
- * @param pin_mask Pin bit mask on the port.
- */
-static void STM32_GPIO_IrqNvicDisableIfUnused(uint32_t pin_index)
-{
-#if defined(STM32F0) || defined(STM32G0)
-    if (pin_index <= 1U)
-    {
-        if ((EXTI->IMR & (GPIO_PIN_0 | GPIO_PIN_1)) == 0U)
-        {
-            HAL_NVIC_DisableIRQ(pin_irq_map[pin_index]);
-        }
-    }
-    else if ((pin_index >= 2U) && (pin_index <= 3U))
-    {
-        if ((EXTI->IMR & (GPIO_PIN_2 | GPIO_PIN_3)) == 0U)
-        {
-            HAL_NVIC_DisableIRQ(pin_irq_map[pin_index]);
-        }
-    }
-    else if (pin_index >= 4U)
-    {
-        if ((EXTI->IMR & (GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9 |
-                          GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15)) == 0U)
-        {
-            HAL_NVIC_DisableIRQ(pin_irq_map[pin_index]);
-        }
-    }
-    else
-    {
-        HAL_NVIC_DisableIRQ(pin_irq_map[pin_index]);
-    }
-#else
-    if ((pin_index >= 5U) && (pin_index <= 9U))
-    {
-        if ((EXTI->IMR & (GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9)) == 0U)
-        {
-            HAL_NVIC_DisableIRQ(pin_irq_map[pin_index]);
-        }
-    }
-    else if ((pin_index >= 10U) && (pin_index <= 15U))
-    {
-        if ((EXTI->IMR & (GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15)) == 0U)
-        {
-            HAL_NVIC_DisableIRQ(pin_irq_map[pin_index]);
-        }
-    }
-    else
-    {
-        HAL_NVIC_DisableIRQ(pin_irq_map[pin_index]);
-    }
-#endif
-}
-
-/**
- * @brief Mask EXTI interrupt for one line and update enable tracking.
- * @note Caller must hold the GPIO IRQ critical section.
- * @param pin_index EXTI line index (0..15).
- * @param pin_mask Pin bit mask on the port.
- */
-static void STM32_GPIO_EXTI_IMR_Disable(uint32_t pin_index, uint32_t pin_mask)
-{
-    EXTI->IMR &= ~pin_mask;
-    __HAL_GPIO_EXTI_CLEAR_IT((uint16_t)pin_mask);
-    STM32_GPIO_IrqNvicDisableIfUnused(pin_index);
-}
-
-/**
  * @brief Enable or disable GPIO interrupt
  * @param pin_id Pin identifier
  * @param enabled 1 to enable, 0 to disable
- * @return 0 on success, -EINVAL if pin id is out-of-bounds or pin is not input mode
+ * @return 0 on success, -ERR_INVAL if pin id is out-of-bounds or pin is not input mode
  */
 static int32_t STM32_GPIO_IrqEnable(uint8_t pin_id, uint32_t enabled)
 {
     uint32_t level;
-    GPIO_TypeDef *port;
-    uint32_t pin_index;
-    uint32_t pin_mask;
+    uint8_t pin_index;
+    uint8_t port_index;
+    uint16_t pin_mask;
 
     if (pin_id >= GPIO_MAX_PINS_NUM) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
-
-    port      = gpio_ports[GET_PORT_IDX(pin_id)];
-    pin_index = PIN_GET_PIN_IDX(pin_id);
-    pin_mask  = (uint32_t)PIN_MASK(pin_id);
+    
+    port_index = GET_PORT_IDX(pin_id);
+    pin_index  = PIN_GET_PIN_IDX(pin_id);
+    pin_mask   = PIN_MASK(pin_id);
 
     if (enabled) {
-        /* 回调未注册时无需进入临界区，直接返回 */
         if (pin_irq_hdr_tab[pin_index].pin == -1) {
-            LOG_W("Pin %d has not been attached with an interrupt handler", pin_id);
-            return -ENOTSUPP;
+            log_w("Pin %d has not been attached with an interrupt handler", pin_id);
+            return -ERR_NOTSUPP;
         }
 
         level = __get_PRIMASK();
         __disable_irq();
-
+        
         /* EXTI 线冲突检测：在临界区内读取外设寄存器，避免竞态 */
-        if (((EXTI->IMR & pin_mask) != 0x00u) || ((EXTI->EMR & pin_mask) != 0x00u)) {
-            uint32_t current_port;
-            current_port = SYSCFG->EXTICR[pin_index >> 2u];
-            current_port = (current_port >> (SYSCFG_EXTICR1_EXTI1_Pos * (pin_index & 0x03u))) & 0x0Fu;
-            if (current_port != (uint32_t)GET_PORT_IDX(pin_id)) {
-                __set_PRIMASK(level);
-                LOG_W("EXTI Conflict: Line %d is already used\n", pin_index);
-                return -ENOTSUPP;
-            }
+        if ( ( (EXTI->IMR_REG & pin_mask) != 0 ) ||
+             ( (EXTI->EMR_REG & pin_mask) != 0 ) ) {
+            log_w("EXTI Conflict: Line %d is already used\n", pin_index);
         }
 
         /* 引脚模式检测：在临界区内读取 MODER 寄存器 */
-        if (STM32_GPIO_IsInputMode(port, pin_index) == 0U) {
+        if (STM32_GPIO_IsInputMode((GPIO_TypeDef*)gpio_ports[port_index], pin_index) == 0U) {
             __set_PRIMASK(level);
-            LOG_W("Pin %d is not in input mode, call GPIO_SetMode(PIN_INPUT) first", pin_id);
-            return -EINVAL;
+            log_w("Pin %d is not in input mode, call GPIO_SetMode(PIN_INPUT) first", pin_id);
+            return -ERR_INVAL;
         }
 
-        if ((pin_irq_hw_mask & pin_mask) == 0U) {
+        if ((irq_initialed_mask & pin_mask) == 0U) {
             EXTI_HandleTypeDef hexti;
             EXTI_ConfigTypeDef exti_config;
             HAL_StatusTypeDef  hal_ret;
 
             exti_config.Line    = EXTI_LINE_0 + pin_index;
             exti_config.Mode    = EXTI_MODE_INTERRUPT;
-            exti_config.GPIOSel = (uint32_t)GET_PORT_IDX(pin_id);
+            exti_config.GPIOSel = (uint32_t)port_index;
 
             switch (pin_irq_hdr_tab[pin_index].event) {
                 case PIN_EVENT_RISING_EDGE:
@@ -633,38 +560,26 @@ static int32_t STM32_GPIO_IrqEnable(uint8_t pin_id, uint32_t enabled)
                     break;
                 default:
                     __set_PRIMASK(level);
-                    LOG_W("Pin %d has invalid interrupt event", pin_id);
-                    return -EINVAL;
+                    log_w("Pin %d has invalid interrupt event", pin_id);
+                    return -ERR_INVAL;
             }
 
             hal_ret = HAL_EXTI_SetConfigLine(&hexti, &exti_config);
             if (hal_ret != HAL_OK) {
                 __set_PRIMASK(level);
-                return -EIO;
+                return -ERR_IO;
             }
-
-            __HAL_GPIO_EXTI_CLEAR_IT((uint16_t)pin_mask);
             HAL_NVIC_SetPriority(pin_irq_map[pin_index], BSP_GPIO_EXTI_IRQ_PRIORITY, 0);
-            pin_irq_hw_mask |= pin_mask;
+            HAL_NVIC_EnableIRQ(pin_irq_map[pin_index]);
+            irq_initialed_mask |= pin_mask;
         } else {
-            __HAL_GPIO_EXTI_CLEAR_IT((uint16_t)pin_mask);
-            EXTI->IMR |= pin_mask;
+            __HAL_GPIO_EXTI_CLEAR_FLAG(pin_mask);
+            EXTI->IMR_REG |= pin_mask;
         }
-        HAL_NVIC_EnableIRQ(pin_irq_map[pin_index]);
-        __set_PRIMASK(level);
+    } else {
+        __HAL_GPIO_EXTI_CLEAR_FLAG(pin_mask);
+        EXTI->IMR_REG &= ~pin_mask;
     }
-    else
-    {
-        if ((EXTI->IMR & pin_mask) == 0U) {
-            return 0;
-        }
-
-        level = __get_PRIMASK();
-        __disable_irq();
-        STM32_GPIO_EXTI_IMR_Disable(pin_index, pin_mask);
-        __set_PRIMASK(level);
-    }
-
     return 0;
 }
 
@@ -672,7 +587,7 @@ static int32_t STM32_GPIO_IrqEnable(uint8_t pin_id, uint32_t enabled)
  * @brief Get GPIO pin identifier from pin name string
  * @param name Pin name string, format "P<port><pin>", e.g. "PA0", "PB15"
  * @param pin_id Pointer to store the pin identifier
- * @return 0 on success, -EINVAL if name is invalid or port does not exist
+ * @return 0 on success, -ERR_INVAL if name is invalid or port does not exist
  */
 static int32_t STM32_GPIO_GetPinId(const char *name, uint8_t *pin_id)
 {
@@ -686,31 +601,31 @@ static int32_t STM32_GPIO_GetPinId(const char *name, uint8_t *pin_id)
 
     /* Valid formats: "PA0".."PZ9" (len==3) or "PA10".."PZ15" (len==4) */
     if ((len < 3U) || (len > 4U)) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     if (name[0] != 'P') {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     port_letter = name[1];
 
     if ((name[2] < '0') || (name[2] > '9')) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     if (len == 3U) {
         pin_num = (uint8_t)(name[2] - '0');
     } else {
         if ((name[3] < '0') || (name[3] > '9')) {
-            return -EINVAL;
+            return -ERR_INVAL;
         }
         pin_num = (uint8_t)(((uint8_t)(name[2] - '0') * 10U) +
                              (uint8_t)(name[3] - '0'));
     }
 
     if (pin_num > 15U) {
-        return -EINVAL;
+        return -ERR_INVAL;
     }
 
     num_ports = (uint8_t)(sizeof(port_name_map) / sizeof(port_name_map[0]));
@@ -721,7 +636,7 @@ static int32_t STM32_GPIO_GetPinId(const char *name, uint8_t *pin_id)
         }
     }
 
-    return -EINVAL;
+    return -ERR_INVAL;
 }
 
 const static struct gpio_ops _stm32_gpio_ops =
@@ -802,7 +717,7 @@ void EXTI4_IRQHandler(void)
  */
 void EXTI9_5_IRQHandler(void)
 {
-    uint32_t pending = EXTI->PR & (GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9);
+    uint32_t pending = LL_EXTI_ReadFlag_0_31(GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9);
     if ((pending & GPIO_PIN_5) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_5); }
     if ((pending & GPIO_PIN_6) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6); }
     if ((pending & GPIO_PIN_7) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_7); }
@@ -816,7 +731,7 @@ void EXTI9_5_IRQHandler(void)
  */
 void EXTI15_10_IRQHandler(void)
 {
-    uint32_t pending = EXTI->PR & (GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
+    uint32_t pending = LL_EXTI_ReadFlag_0_31(GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
     if ((pending & GPIO_PIN_10) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_10); }
     if ((pending & GPIO_PIN_11) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_11); }
     if ((pending & GPIO_PIN_12) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_12); }
@@ -829,8 +744,8 @@ void EXTI15_10_IRQHandler(void)
  * @brief Initialize BSP GPIO
  * @return None
  */
-void BSP_GPIO_Init(void)
+int32_t BSP_GPIO_Init(void)
 {
-    GPIO_Register(&_stm32_gpio_ops);
+    return GPIO_Register(&_stm32_gpio_ops);
 }
 /* Private functions ---------------------------------------------------------*/
