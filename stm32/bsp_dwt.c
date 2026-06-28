@@ -15,7 +15,7 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_dwt.h"
-#include "bsp_conf.h"
+#include "main.h"
 
 #define  LOG_TAG             "bsp_dwt"
 #define  LOG_LVL             ELOG_LVL_DEBUG
@@ -41,7 +41,12 @@ void BSP_DWT_Init(void)
 #if (__CORTEX_M < 3)
     #error "DWT is not supported on this core"
 #endif
+
+#if defined(DCB)
     DCB->DEMCR |= DCB_DEMCR_TRCENA_Msk;
+#elif defined(CoreDebug)
+    CoreDebug->DEMCR = CoreDebug_DEMCR_TRCENA_Msk;
+#endif
     DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
     DWT->CYCCNT = 0U;
 

@@ -15,11 +15,10 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_uart.h"
+#include "main.h"
 #include "bsp_conf.h"
-//#include "bsp_dma.h"
-#include "serial.h"
+#include "dev_uart.h"
 #include "errno-base.h"
-#include <stdio.h>
 
 #define  LOG_TAG             "bsp_uart"
 #define  LOG_LVL             ELOG_LVL_DEBUG
@@ -29,15 +28,11 @@
 
 /* Private typedef -----------------------------------------------------------*/
 struct stm32_uart {
-    UART_HandleTypeDef huart;
-    USART_TypeDef *Instance;
-    DMA_HandleTypeDef hdma_uart_rx;
-    DMA_HandleTypeDef hdma_uart_tx;
-    char *name;
+    UART_HandleTypeDef *huart;
     uint8_t *rx_cache_buf;
     uint16_t rx_cache_bufsz;
     uint16_t last_pos;
-    uint8_t index;
+    Uart_t *port;               ///< Back-pointer to generic uart device, set by BSP_UART_Init
 };
 
 /* Private define ------------------------------------------------------------*/
@@ -80,60 +75,59 @@ enum
 #endif
     UART_INDEX_MAX,
 };
-
 /* Private variables ---------------------------------------------------------*/
-static Serial_t serial_dev[UART_INDEX_MAX]; /* 串口设备数组 */
 
 /* 串口缓冲区定义 */
 #if defined(BSP_USING_UART1)
+    extern UART_HandleTypeDef huart1;
     static uint8_t uart1_rx_buf[UART1_RX_BUF_SIZE] = {0};
     static uint8_t uart1_tx_buf[UART1_TX_BUF_SIZE] = {0};
     static uint8_t uart1_rx_cache_buf[UART1_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART1
-
 #if defined(BSP_USING_UART2)
+    extern UART_HandleTypeDef huart2;
     static uint8_t uart2_rx_buf[UART2_RX_BUF_SIZE] = {0};
     static uint8_t uart2_tx_buf[UART2_TX_BUF_SIZE] = {0};
     static uint8_t uart2_rx_cache_buf[UART2_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART2
-
 #if defined(BSP_USING_UART3)
+    extern UART_HandleTypeDef huart3;
     static uint8_t uart3_rx_buf[UART3_RX_BUF_SIZE] = {0};
     static uint8_t uart3_tx_buf[UART3_TX_BUF_SIZE] = {0};
     static uint8_t uart3_rx_cache_buf[UART3_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART3
-
 #if defined(BSP_USING_UART4)
+    extern UART_HandleTypeDef huart4;
     static uint8_t uart4_rx_buf[UART4_RX_BUF_SIZE] = {0};
     static uint8_t uart4_tx_buf[UART4_TX_BUF_SIZE] = {0};
     static uint8_t uart4_rx_cache_buf[UART4_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART4
-
 #if defined(BSP_USING_UART5)
+    extern UART_HandleTypeDef huart5;
     static uint8_t uart5_rx_buf[UART5_RX_BUF_SIZE] = {0};
     static uint8_t uart5_tx_buf[UART5_TX_BUF_SIZE] = {0};
     static uint8_t uart5_rx_cache_buf[UART5_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART5
-
 #if defined(BSP_USING_UART6)
+    extern UART_HandleTypeDef huart6;
     static uint8_t uart6_rx_buf[UART6_RX_BUF_SIZE] = {0};
     static uint8_t uart6_tx_buf[UART6_TX_BUF_SIZE] = {0};
     static uint8_t uart6_rx_cache_buf[UART6_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART6
-
 #if defined(BSP_USING_UART7)
+    extern UART_HandleTypeDef huart7;
     static uint8_t uart7_rx_buf[UART7_RX_BUF_SIZE] = {0};
     static uint8_t uart7_tx_buf[UART7_TX_BUF_SIZE] = {0};
     static uint8_t uart7_rx_cache_buf[UART7_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART7
-
 #if defined(BSP_USING_UART8)
+    extern UART_HandleTypeDef huart8;
     static uint8_t uart8_rx_buf[UART8_RX_BUF_SIZE] = {0};
     static uint8_t uart8_tx_buf[UART8_TX_BUF_SIZE] = {0};
     static uint8_t uart8_rx_cache_buf[UART8_RX_CACHE_BUF_SIZE] = {0};
 #endif // BSP_USING_UART8
-
 #if defined(BSP_USING_LPUART1)
+    extern UART_HandleTypeDef lphuart1;
     static uint8_t lpuart1_rx_buf[LPUART1_RX_BUF_SIZE] = {0};
     static uint8_t lpuart1_tx_buf[LPUART1_TX_BUF_SIZE] = {0};
     static uint8_t lpuart1_rx_cache_buf[LPUART1_RX_CACHE_BUF_SIZE] = {0};
@@ -144,106 +138,96 @@ static struct stm32_uart stm_uart_drv[UART_INDEX_MAX] =
 {
 #ifdef BSP_USING_UART1
     {
-        .Instance = USART1,
-        .rx_cache_buf = uart1_rx_cache_buf,
+        .huart          = &huart1,
+        .rx_cache_buf   = uart1_rx_cache_buf,
         .rx_cache_bufsz = UART1_RX_CACHE_BUF_SIZE,
-        .index = UART1_INDEX,
-        .name = "uart1",
+        .port           = NULL,
     },
 #endif
 
 #ifdef BSP_USING_UART2
     {
-        .Instance = USART2,
-        .rx_cache_buf = uart2_rx_cache_buf,
+        .huart          = &huart2,
+        .rx_cache_buf   = uart2_rx_cache_buf,
         .rx_cache_bufsz = UART2_RX_CACHE_BUF_SIZE,
-        .index = UART2_INDEX,
-        .name = "uart2",
+        .port           = NULL,
     },
 #endif
 
 #ifdef BSP_USING_UART3
     {
-        .Instance = USART3,
-        .rx_cache_buf = uart3_rx_cache_buf,
+        .huart          = &huart3,
+        .rx_cache_buf   = uart3_rx_cache_buf,
         .rx_cache_bufsz = UART3_RX_CACHE_BUF_SIZE,
-        .index = UART3_INDEX,
-        .name = "uart3",
+        .port           = NULL,
     },
 #endif
 
 #ifdef BSP_USING_UART4
     {
-        .Instance = UART4,
-        .rx_cache_buf = uart4_rx_cache_buf,
+        .huart          = &huart4,
+        .rx_cache_buf   = uart4_rx_cache_buf,
         .rx_cache_bufsz = UART4_RX_CACHE_BUF_SIZE,
-        .index = UART4_INDEX,
-        .name = "uart4",
+        .port           = NULL,
     },
 #endif
 #ifdef BSP_USING_UART5
     {
-        .Instance = UART5,
-        .rx_cache_buf = uart5_rx_cache_buf,
+        .huart          = &huart5,
+        .rx_cache_buf   = uart5_rx_cache_buf,
         .rx_cache_bufsz = UART5_RX_CACHE_BUF_SIZE,
-        .index = UART5_INDEX,
-        .name = "uart5",
+        .port           = NULL,
     },
 #endif
 #ifdef BSP_USING_UART6
     {
-        .Instance = UART6,
-        .rx_cache_buf = uart6_rx_cache_buf,
+        .huart          = &huart6,
+        .rx_cache_buf   = uart6_rx_cache_buf,
         .rx_cache_bufsz = UART6_RX_CACHE_BUF_SIZE,
-        .index = UART6_INDEX,
-        .name = "uart6",
+        .port           = NULL,
     },
 #endif
 #ifdef BSP_USING_UART7
     {
-        .Instance = UART7,
-        .rx_cache_buf = uart7_rx_cache_buf,
+        .huart          = &huart7,
+        .rx_cache_buf   = uart7_rx_cache_buf,
         .rx_cache_bufsz = UART7_RX_CACHE_BUF_SIZE,
-        .index = UART7_INDEX,
-        .name = "uart7",
+        .port           = NULL,
     },
 #endif
 #ifdef BSP_USING_UART8
     {
-        .Instance = UART8,
-        .rx_cache_buf = uart8_rx_cache_buf,
+        .huart          = &huart8,
+        .rx_cache_buf   = uart8_rx_cache_buf,
         .rx_cache_bufsz = UART8_RX_CACHE_BUF_SIZE,
-        .index = UART8_INDEX,
-        .name = "uart8",
+        .port           = NULL,
     },
 #endif
 #ifdef BSP_USING_LPUART1
     {
-        .Instance = LPUART1,
-        .rx_cache_buf = lpuart1_rx_cache_buf,
+        .huart          = &lphuart1,
+        .rx_cache_buf   = lpuart1_rx_cache_buf,
         .rx_cache_bufsz = LPUART1_RX_CACHE_BUF_SIZE,
-        .index = LPUART1_INDEX,
-        .name = "lpuart1",
+        .port           = NULL,
     },
 #endif
 };
 
 /* Function prototypes */
-static int stm32_usart_init(Serial_t *port);
-static int stm32_uart_tx(Serial_t *port, const void *buf, size_t size);
-static int stm32_uart_start_rx(Serial_t *port);
-static int stm32_uart_configure(Serial_t *port, struct serial_configure *cfg);
-static void stm32_uart_gpio_init(struct stm32_uart *uartHandle);
-static void stm32_uart_dma_config(struct stm32_uart *uartHandle);
-static bool stm32_uart_tx_is_busy(struct serial *port);
+static int32_t STM32_UART_Init(Uart_t *port);
+static int32_t STM32_UART_Transmit(Uart_t *port, const void *buf, size_t size);
+static int32_t STM32_UART_StartReceive(Uart_t *port);
+static int32_t STM32_UART_Config(Uart_t *port, struct uart_configure *cfg);
+static bool    STM32_UART_TxIsBusy(struct uart *port);
+static struct stm32_uart *stm32_uart_from_handle(const UART_HandleTypeDef *huart);
 
 /* Serial operations structure */
-static const serial_ops_t stm_uart_ops = {
-    .init = stm32_usart_init,
-    .send = stm32_uart_tx,
-    .configure = stm32_uart_configure,
-    .start_rx = stm32_uart_start_rx,
-    .tx_is_busy = stm32_uart_tx_is_busy,
+static const Uart_Ops_t stm_uart_ops = {
+    .init = STM32_UART_Init,
+    .send = STM32_UART_Transmit,
+    .configure = STM32_UART_Config,
+    .start_rx = STM32_UART_StartReceive,
+    .tx_is_busy = STM32_UART_TxIsBusy,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -251,796 +235,64 @@ static const serial_ops_t stm_uart_ops = {
 
 /**
   * @brief  STM32 USART initialization function
-  * @param  port: Pointer to serial device
+  * @param  port: Pointer to uart device
   * @retval 0 on success, negative error code on failure
   */
-static int stm32_usart_init(Serial_t *port)
+static int32_t STM32_UART_Init(Uart_t *port)
 {
-    struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
-    int ret = 0;
-
-    stm32_uart_gpio_init(stm_uart);
-    stm32_uart_dma_config(stm_uart);
-
-    /* Initialize port configuration with default values */
-    struct serial_configure cfg = SERIAL_CONFIG_DEFAULT;
-    port->config = cfg;
-
-    /* Configure UART handle */
-    stm_uart->huart.Instance = stm_uart->Instance;
-    stm_uart->huart.Init.Mode = UART_MODE_TX_RX;
-    stm_uart->huart.Init.OverSampling = UART_OVERSAMPLING_16;
-#if defined(STM32G4)
-    stm_uart->huart.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-    stm_uart->huart.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-    stm_uart->huart.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-#endif
-
-    ret = stm32_uart_configure(port, &cfg);
-    if (ret != 0)
-        return ret;
-
-#if defined(STM32G4)
-    /* Configure FIFO thresholds for STM32G4 series */
-    if (HAL_UARTEx_SetTxFifoThreshold(&stm_uart->huart, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK) {
-        return -ERR_IO;
-    }
-    if (HAL_UARTEx_SetRxFifoThreshold(&stm_uart->huart, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK) {
-        return -ERR_IO;
-    }
-    if (HAL_UARTEx_DisableFifoMode(&stm_uart->huart) != HAL_OK) {
-        return -ERR_IO;
-    }
-#endif
-    stm32_uart_start_rx(port);
     return 0;
 }
 
 /**
-  * @brief  Configure UART parameters
-  * @param  port: Pointer to serial device
+  * @brief  Configure UART parameters (not yet implemented)
+  * @param  port: Pointer to uart device
   * @param  cfg: Pointer to configuration structure
-  * @retval 0 on success, negative error code on failure
+  * @retval -ERR_NOSYS (runtime re-configuration not implemented)
   */
-static int stm32_uart_configure(Serial_t *port, struct serial_configure *cfg)
+static int32_t STM32_UART_Config(Uart_t *port, struct uart_configure *cfg)
+{
+    (void)port;
+    (void)cfg;
+    return -ERR_NOSYS;
+}
+
+static bool STM32_UART_TxIsBusy(struct uart *port)
 {
     struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
 
-    if (!port || !cfg || !stm_uart) {
-        return -ERR_INVAL;
-    }
-
-    /* Configure baud rate */
-    stm_uart->huart.Init.BaudRate = cfg->baud_rate;
-
-    /* Configure data bits */
-    switch (cfg->data_bits) {
-        case DATA_BITS_8:
-            stm_uart->huart.Init.WordLength = UART_WORDLENGTH_8B;
-            break;
-        case DATA_BITS_9:
-            stm_uart->huart.Init.WordLength = UART_WORDLENGTH_9B;
-            break;
-        default:
-            return -ERR_INVAL;
-    }
-
-    /* Configure stop bits */
-    switch (cfg->stop_bits) {
-        case STOP_BITS_1:
-            stm_uart->huart.Init.StopBits = UART_STOPBITS_1;
-            break;
-        case STOP_BITS_2:
-            stm_uart->huart.Init.StopBits = UART_STOPBITS_2;
-            break;
-        default:
-            return -ERR_INVAL;
-    }
-
-    /* Configure parity */
-    switch (cfg->parity) {
-        case PARITY_NONE:
-            stm_uart->huart.Init.Parity = UART_PARITY_NONE;
-            break;
-        case PARITY_ODD:
-            stm_uart->huart.Init.Parity = UART_PARITY_ODD;
-            break;
-        case PARITY_EVEN:
-            stm_uart->huart.Init.Parity = UART_PARITY_EVEN;
-            break;
-        default:
-            return -ERR_INVAL;
-    }
-
-    /* Configure flow control */
-    if (cfg->flowcontrol == SERIAL_FLOWCONTROL_CTSRTS) {
-        stm_uart->huart.Init.HwFlowCtl = UART_HWCONTROL_RTS_CTS;
-    } else {
-        stm_uart->huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    }
-
-    /* Apply configuration */
-    if (HAL_UART_Init(&stm_uart->huart) != HAL_OK) {
-        return -ERR_IO;
-    }
-
-    return 0;
-}
-
-static inline void stm32_uart_rx_dma_config(struct stm32_uart *uartHandle)
-{
-    /* DMA RX配置 */
-    uartHandle->hdma_uart_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    uartHandle->hdma_uart_rx.Init.PeriphInc = DMA_PINC_DISABLE;
-    uartHandle->hdma_uart_rx.Init.MemInc = DMA_MINC_ENABLE;
-    uartHandle->hdma_uart_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    uartHandle->hdma_uart_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    uartHandle->hdma_uart_rx.Init.Mode = DMA_NORMAL;
-    uartHandle->hdma_uart_rx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-
-    if (HAL_DMA_Init(&uartHandle->hdma_uart_rx) != HAL_OK) {
-        log_e("HAL_DMA_Init errno");
-        while(1);
-    }
-    __HAL_LINKDMA(&uartHandle->huart, hdmarx, uartHandle->hdma_uart_rx);
-}
-
-static inline void stm32_uart_tx_dma_config(struct stm32_uart *uartHandle)
-{
-    /* DMA TX配置 */
-    uartHandle->hdma_uart_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-    uartHandle->hdma_uart_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-    uartHandle->hdma_uart_tx.Init.MemInc = DMA_MINC_ENABLE;
-    uartHandle->hdma_uart_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    uartHandle->hdma_uart_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    uartHandle->hdma_uart_tx.Init.Mode = DMA_NORMAL;
-    uartHandle->hdma_uart_tx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-
-    if (HAL_DMA_Init(&uartHandle->hdma_uart_tx) != HAL_OK) {
-        log_e("HAL_DMA_Init errno");
-        while(1);
-    }
-    __HAL_LINKDMA(&uartHandle->huart, hdmatx, uartHandle->hdma_uart_tx);
-}
-
-/**
- * @brief 配置DMA
- * @param uartHandle: UART句柄
- * @param uart_index: UART索引
- * @retval None
- */
-static void stm32_uart_dma_config(struct stm32_uart *uartHandle)
-{
-    /* DMA controller clock enable */
-#if defined(STM32G4) || defined(STM32H7)
-    __HAL_RCC_DMAMUX1_CLK_ENABLE();
-#endif
-    __HAL_RCC_DMA1_CLK_ENABLE();
-    __HAL_RCC_DMA2_CLK_ENABLE();
-
-    switch (uartHandle->index) {
-#ifdef BSP_USING_UART1
-    case UART1_INDEX:
-#ifdef BSP_UART1_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_UART1_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_USART1_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART1_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART1_DMA_RX_IRQn);
-#endif
-#ifdef BSP_UART1_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_UART1_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_USART1_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART1_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART1_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-
-#ifdef BSP_USING_UART2
-    case UART2_INDEX:
-#ifdef BSP_UART2_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_UART2_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_USART2_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART2_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART2_DMA_RX_IRQn);
-#endif
-#ifdef BSP_UART2_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_UART2_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_USART2_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART2_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART2_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-
-#ifdef BSP_USING_UART3
-    case UART3_INDEX:
-#ifdef BSP_UART3_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_UART3_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_USART3_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART3_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART3_DMA_RX_IRQn);
-#endif
-#ifdef BSP_UART3_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_UART3_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_USART3_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART3_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART3_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-
-#ifdef BSP_USING_UART4
-    case UART4_INDEX:
-#ifdef BSP_UART4_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_UART4_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_UART4_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART4_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART4_DMA_RX_IRQn);
-#endif
-#ifdef BSP_UART4_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_UART4_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_UART4_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART4_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART4_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-
-#ifdef BSP_USING_UART5
-    case UART5_INDEX:
-#ifdef BSP_UART5_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_UART5_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_UART5_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART5_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART5_DMA_RX_IRQn);
-#endif
-#ifdef BSP_UART5_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_UART5_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_UART5_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART5_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART5_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-
-#ifdef BSP_USING_UART6
-    case UART6_INDEX:
-#ifdef BSP_UART6_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_UART6_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_USART6_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART6_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART6_DMA_RX_IRQn);
-#endif
-#ifdef BSP_UART6_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_UART6_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_USART6_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART6_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART6_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-
-#ifdef BSP_USING_UART7
-    case UART7_INDEX:
-#ifdef BSP_UART7_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_UART7_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_UART7_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART7_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART7_DMA_RX_IRQn);
-#endif
-#ifdef BSP_UART7_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_UART7_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_UART7_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART7_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART7_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-
-#ifdef BSP_USING_UART8
-    case UART8_INDEX:
-#ifdef BSP_UART8_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_UART8_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_UART8_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART8_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART8_DMA_RX_IRQn);
-#endif
-#ifdef BSP_UART8_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_UART8_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_UART8_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_UART8_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_UART8_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-
-#ifdef BSP_USING_LPUART1
-    case LPUART1_INDEX:
-#ifdef BSP_LPUART1_RX_USING_DMA
-        uartHandle->hdma_uart_rx.Instance = BSP_LPUART1_DMA_RX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_rx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_rx.Init.Request = DMA_REQUEST_LPUART1_RX;
-#endif
-        stm32_uart_rx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_LPUART1_DMA_RX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_LPUART1_DMA_RX_IRQn);
-#endif
-#ifdef BSP_LPUART1_TX_USING_DMA
-        uartHandle->hdma_uart_tx.Instance = BSP_LPUART1_DMA_TX_INSTANCE;
-#if defined(STM32F4)
-        uartHandle->hdma_uart_tx.Init.Channel = DMA_CHANNEL_4;
-#elif defined(STM32G4) || defined(STM32H7)
-        uartHandle->hdma_uart_tx.Init.Request = DMA_REQUEST_LPUART1_TX;
-#endif
-        stm32_uart_tx_dma_config(uartHandle);
-        HAL_NVIC_SetPriority(BSP_LPUART1_DMA_TX_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(BSP_LPUART1_DMA_TX_IRQn);
-#endif
-        break;
-#endif
-    default:
-        return;
-    }
-}
-
-/**
-  * @brief  Initialize UART GPIO pins
-  * @param  uartHandle: Pointer to UART handle structure
-  * @retval None
-  */
-static void stm32_uart_gpio_init(struct stm32_uart *uartHandle)
-{
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-#if defined(STM32G4)
-    RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-#endif
-
-    switch (uartHandle->index) {
-#ifdef BSP_USING_UART1
-    case UART1_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
-        PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_USART1_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_UART1_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-#endif
-        HAL_GPIO_Init(BSP_UART1_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_UART1_RX_PIN;
-        HAL_GPIO_Init(BSP_UART1_RX_PORT, &GPIO_InitStruct);
-        
-        HAL_NVIC_SetPriority(USART1_IRQn, BSP_UART1_IRQ_PRIORITY, 0);
-        HAL_NVIC_EnableIRQ(USART1_IRQn);
-        break;
-#endif /* BSP_USING_UART1 */
-
-#ifdef BSP_USING_UART2
-    case UART2_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2;
-        PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_USART2_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_UART2_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-#endif
-        HAL_GPIO_Init(BSP_UART2_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_UART2_RX_PIN;
-        HAL_GPIO_Init(BSP_UART2_RX_PORT, &GPIO_InitStruct);
-
-        HAL_NVIC_SetPriority(USART2_IRQn, 0, BSP_UART2_IRQ_PRIORITY);
-        HAL_NVIC_EnableIRQ(USART2_IRQn);
-        break;
-#endif
-
-#ifdef BSP_USING_UART3
-    case UART3_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART3;
-        PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_USART3_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_UART3_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
-#endif
-        HAL_GPIO_Init(BSP_UART3_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_UART3_RX_PIN;
-        HAL_GPIO_Init(BSP_UART3_RX_PORT, &GPIO_InitStruct);
-        
-        __HAL_AFIO_REMAP_USART3_PARTIAL();
-
-        HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(USART3_IRQn);
-        break;
-#endif
-
-#ifdef BSP_USING_UART4
-    case UART4_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_UART4;
-        PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_UART4_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_UART4_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF8_UART4;
-#endif
-        HAL_GPIO_Init(BSP_UART4_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_UART4_RX_PIN;
-        HAL_GPIO_Init(BSP_UART4_RX_PORT, &GPIO_InitStruct);
-
-        HAL_NVIC_SetPriority(UART4_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(UART4_IRQn);
-        break;
-#endif
-
-#ifdef BSP_USING_UART5
-    case UART5_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_UART5;
-        PeriphClkInit.Uart5ClockSelection = RCC_UART5CLKSOURCE_PCLK1;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_UART5_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_UART5_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF8_UART5;
-#endif
-        HAL_GPIO_Init(BSP_UART5_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_UART5_RX_PIN;
-        HAL_GPIO_Init(BSP_UART5_RX_PORT, &GPIO_InitStruct);
-
-        HAL_NVIC_SetPriority(UART5_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(UART5_IRQn);
-        break;
-#endif
-
-#ifdef BSP_USING_UART6
-    case UART6_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART6;
-        PeriphClkInit.Usart6ClockSelection = RCC_USART6CLKSOURCE_PCLK2;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_USART6_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_UART6_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
-#endif
-        HAL_GPIO_Init(BSP_UART6_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_UART6_RX_PIN;
-        HAL_GPIO_Init(BSP_UART6_RX_PORT, &GPIO_InitStruct);
-
-        HAL_NVIC_SetPriority(USART6_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(USART6_IRQn);
-        break;
-#endif
-
-#ifdef BSP_USING_UART7
-    case UART7_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_UART7;
-        PeriphClkInit.Uart7ClockSelection = RCC_UART7CLKSOURCE_PCLK1;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_UART7_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_UART7_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF8_UART7;
-#endif
-        HAL_GPIO_Init(BSP_UART7_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_UART7_RX_PIN;
-        HAL_GPIO_Init(BSP_UART7_RX_PORT, &GPIO_InitStruct);
-
-        HAL_NVIC_SetPriority(UART7_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(UART7_IRQn);
-        break;
-#endif
-
-#ifdef BSP_USING_UART8
-    case UART8_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_UART8;
-        PeriphClkInit.Uart8ClockSelection = RCC_UART8CLKSOURCE_PCLK1;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_UART8_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_UART8_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF8_UART8;
-#endif
-        HAL_GPIO_Init(BSP_UART8_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_UART8_RX_PIN;
-        HAL_GPIO_Init(BSP_UART8_RX_PORT, &GPIO_InitStruct);
-        
-        HAL_NVIC_SetPriority(UART8_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(UART8_IRQn);
-        break;
-#endif
-
-#ifdef BSP_USING_LPUART1
-    case LPUART1_INDEX:
-#if defined(STM32G4)
-        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_LPUART1;
-        PeriphClkInit.Lpuart1ClockSelection = RCC_LPUART1CLKSOURCE_PCLK1;
-        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-        {
-            log_e("HAL_RCCEx_PeriphCLKConfig errno");
-            while(1);
-        }
-#endif
-        __HAL_RCC_LPUART1_CLK_ENABLE();
-    
-        GPIO_InitStruct.Pin = BSP_LPUART1_TX_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-        GPIO_InitStruct.Pull = GPIO_PULLUP;
-#ifndef STM32F1
-        GPIO_InitStruct.Alternate = GPIO_AF8_LPUART1;
-#endif
-        HAL_GPIO_Init(BSP_LPUART1_TX_PORT, &GPIO_InitStruct);
-
-        
-#if defined(STM32F1)
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-#else
-        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-#endif
-        GPIO_InitStruct.Pin = BSP_LPUART1_RX_PIN;
-        HAL_GPIO_Init(BSP_LPUART1_RX_PORT, &GPIO_InitStruct);
-
-        HAL_NVIC_SetPriority(LPUART1_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(LPUART1_IRQn);
-        break;
-#endif
-    default:
-        return;
-    }
-}
-
-static bool stm32_uart_tx_is_busy(struct serial *port)
-{
-    struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
-
-    return (stm_uart->huart.gState == HAL_UART_STATE_BUSY_TX) ? true : false;
+    return (stm_uart->huart->gState == HAL_UART_STATE_BUSY_TX) ? true : false;
 }
 
 /**
   * @brief  UART transmit using DMA or interrupt mode
-  * @param  port: Pointer to serial device
+  * @param  port: Pointer to uart device
   * @param  buf: Pointer to data buffer
   * @param  size: Number of bytes to transmit
   * @retval 0 on success, negative error code on failure
   */
-static int stm32_uart_tx(Serial_t *port, const void *buf, size_t size)
+static int32_t STM32_UART_Transmit(Uart_t *port, const void *buf, size_t size)
 {
-    struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
+    struct stm32_uart *stm_uart;
     HAL_StatusTypeDef status;
-    const uint8_t *data = (const uint8_t*)buf;
+    const uint8_t *data;
 
-    if (!port || !buf || size == 0 || !stm_uart) {
+    /* port, buf and size are guaranteed valid by start_transfer (the sole caller):
+     *   - port:    non-NULL, validated upstream
+     *   - buf:     points into the static TX FIFO buffer, never NULL
+     *   - size:    start_transfer skips the call when len==0
+     *   - prv_data: always set to a static stm_uart_drv[] element in BSP_UART_Init
+     * Only guard against a size that would overflow the HAL uint16_t parameter. */
+    if (size > (size_t)UINT16_MAX) {
         return -ERR_INVAL;
     }
 
-    if (size > UINT16_MAX) {
-        return -ERR_INVAL;
-    }
+    stm_uart = (struct stm32_uart *)port->prv_data;
+    data     = (const uint8_t *)buf;
 
-    if (stm_uart->huart.hdmatx != NULL) {
-        status = HAL_UART_Transmit_DMA(&stm_uart->huart, data, (uint16_t)size);
+    if (stm_uart->huart->hdmatx != NULL) {
+        status = HAL_UART_Transmit_DMA(stm_uart->huart, data, (uint16_t)size);
     } else {
-        status = HAL_UART_Transmit_IT(&stm_uart->huart, data, (uint16_t)size);
+        status = HAL_UART_Transmit_IT(stm_uart->huart, data, (uint16_t)size);
     }
 
     if (status != HAL_OK) {
@@ -1053,30 +305,26 @@ static int stm32_uart_tx(Serial_t *port, const void *buf, size_t size)
 
 /**
   * @brief  Start UART DMA/Interrupt reception
-  * @param  port: Pointer to serial device
+  * @param  port: Pointer to uart device
   * @retval 0 on success, negative error code on failure
   */
-static int stm32_uart_start_rx(Serial_t *port)
+static int32_t STM32_UART_StartReceive(Uart_t *port)
 {
     struct stm32_uart *stm_uart = (struct stm32_uart *)port->prv_data;
     HAL_StatusTypeDef status;
 
-    if (!port || !stm_uart) {
-        return -ERR_INVAL;
-    }
-
     // 重置位置计数器
     stm_uart->last_pos = 0;
 
-    // 重新开启中断接收
-    if (stm_uart->huart.hdmarx != NULL) {
+    // 开启中断接收
+    if (stm_uart->huart->hdmarx != NULL) {
         /* 使用DMA模式接收 */
-        status = HAL_UARTEx_ReceiveToIdle_DMA(&stm_uart->huart,
+        status = HAL_UARTEx_ReceiveToIdle_DMA(stm_uart->huart,
                                              stm_uart->rx_cache_buf,
                                              stm_uart->rx_cache_bufsz);
     } else {
         /* 使用中断模式接收，单字节接收 */
-        status = HAL_UARTEx_ReceiveToIdle_IT(&stm_uart->huart, stm_uart->rx_cache_buf, stm_uart->rx_cache_bufsz);
+        status = HAL_UARTEx_ReceiveToIdle_IT(stm_uart->huart, stm_uart->rx_cache_buf, stm_uart->rx_cache_bufsz);
     }
 
     if (status != HAL_OK) {
@@ -1093,101 +341,141 @@ static int stm32_uart_start_rx(Serial_t *port)
   */
 int BSP_UART_Init(void)
 {
-    int ret = 0;
+    int32_t ret;
+    Uart_t *port;
+    uint8_t i;
 
-    for (uint8_t i = 0; i < UART_INDEX_MAX; i++)
-    {
-        serial_dev[i].prv_data = &stm_uart_drv[i];
-        serial_dev[i].ops = &stm_uart_ops;
+    /* Compile-time guard: bsp_conf.h enabled UART count must equal DEV_UART_MAX */
+    _Static_assert((int32_t)UART_INDEX_MAX == (int32_t)DEV_UART_MAX,
+                   "BSP UART count (UART_INDEX_MAX) != DEV_UART_MAX in dev_cfg.h");
 
-        ret = Serial_Register(&serial_dev[i], stm_uart_drv[i].name);
-        if (ret != 0) {
-            return ret;
+    /* Bind platform driver context and ops to each generic port */
+    for (i = 0U; i < (uint8_t)UART_INDEX_MAX; i++) {
+        port = Uart_Find(i);
+        if (port == NULL) {
+            return -ERR_IO;
         }
+        port->prv_data       = (void *)&stm_uart_drv[i];
+        port->ops            = &stm_uart_ops;
+        stm_uart_drv[i].port = port;
     }
 
+    /* Register each port with its static backing buffers (also inits FIFOs) */
 #if defined(BSP_USING_UART1)
-    stm_uart_drv[UART1_INDEX].rx_cache_buf = uart1_rx_cache_buf;
-    stm_uart_drv[UART1_INDEX].rx_cache_bufsz = sizeof(uart1_rx_cache_buf);
-    serial_dev[UART1_INDEX].rx_buf   = uart1_rx_buf;
-    serial_dev[UART1_INDEX].rx_bufsz = sizeof(uart1_rx_buf);
-    serial_dev[UART1_INDEX].tx_buf   = uart1_tx_buf;
-    serial_dev[UART1_INDEX].tx_bufsz = sizeof(uart1_tx_buf);
+    ret = Uart_Register(Uart_Find(UART1_INDEX), (uint8_t)UART1_INDEX,
+                        uart1_rx_buf, (uint16_t)sizeof(uart1_rx_buf),
+                        uart1_tx_buf, (uint16_t)sizeof(uart1_tx_buf));
+    if (ret != 0) { return (int)ret; }
 #endif
-
 #if defined(BSP_USING_UART2)
-    stm_uart_drv[UART2_INDEX].rx_cache_buf = uart2_rx_cache_buf;
-    stm_uart_drv[UART2_INDEX].rx_cache_bufsz = sizeof(uart2_rx_cache_buf);
-    serial_dev[UART2_INDEX].rx_buf   = uart2_rx_buf;
-    serial_dev[UART2_INDEX].rx_bufsz = sizeof(uart2_rx_buf);
-    serial_dev[UART2_INDEX].tx_buf   = uart2_tx_buf;
-    serial_dev[UART2_INDEX].tx_bufsz = sizeof(uart2_tx_buf);
+    ret = Uart_Register(Uart_Find(UART2_INDEX), (uint8_t)UART2_INDEX,
+                        uart2_rx_buf, (uint16_t)sizeof(uart2_rx_buf),
+                        uart2_tx_buf, (uint16_t)sizeof(uart2_tx_buf));
+    if (ret != 0) { return (int)ret; }
 #endif
-
 #if defined(BSP_USING_UART3)
-    stm_uart_drv[UART3_INDEX].rx_cache_buf = uart3_rx_cache_buf;
-    stm_uart_drv[UART3_INDEX].rx_cache_bufsz = sizeof(uart3_rx_cache_buf);
-    serial_dev[UART3_INDEX].rx_buf   = uart3_rx_buf;
-    serial_dev[UART3_INDEX].rx_bufsz = sizeof(uart3_rx_buf);
-    serial_dev[UART3_INDEX].tx_buf   = uart3_tx_buf;
-    serial_dev[UART3_INDEX].tx_bufsz = sizeof(uart3_tx_buf);
+    ret = Uart_Register(Uart_Find(UART3_INDEX), (uint8_t)UART3_INDEX,
+                        uart3_rx_buf, (uint16_t)sizeof(uart3_rx_buf),
+                        uart3_tx_buf, (uint16_t)sizeof(uart3_tx_buf));
+    if (ret != 0) { return (int)ret; }
 #endif
-
 #if defined(BSP_USING_UART4)
-    stm_uart_drv[UART4_INDEX].rx_cache_buf = uart4_rx_cache_buf;
-    stm_uart_drv[UART4_INDEX].rx_cache_bufsz = sizeof(uart4_rx_cache_buf);
-    serial_dev[UART4_INDEX].rx_buf   = uart4_rx_buf;
-    serial_dev[UART4_INDEX].rx_bufsz = sizeof(uart4_rx_buf);
-    serial_dev[UART4_INDEX].tx_buf   = uart4_tx_buf;
-    serial_dev[UART4_INDEX].tx_bufsz = sizeof(uart4_tx_buf);
+    ret = Uart_Register(Uart_Find(UART4_INDEX), (uint8_t)UART4_INDEX,
+                        uart4_rx_buf, (uint16_t)sizeof(uart4_rx_buf),
+                        uart4_tx_buf, (uint16_t)sizeof(uart4_tx_buf));
+    if (ret != 0) { return (int)ret; }
 #endif
-
 #if defined(BSP_USING_UART5)
-    stm_uart_drv[UART5_INDEX].rx_cache_buf = uart5_rx_cache_buf;
-    stm_uart_drv[UART5_INDEX].rx_cache_bufsz = sizeof(uart5_rx_cache_buf);
-    serial_dev[UART5_INDEX].rx_buf   = uart5_rx_buf;
-    serial_dev[UART5_INDEX].rx_bufsz = sizeof(uart5_rx_buf);
-    serial_dev[UART5_INDEX].tx_buf   = uart5_tx_buf;
-    serial_dev[UART5_INDEX].tx_bufsz = sizeof(uart5_tx_buf);
+    ret = Uart_Register(Uart_Find(UART5_INDEX), (uint8_t)UART5_INDEX,
+                        uart5_rx_buf, (uint16_t)sizeof(uart5_rx_buf),
+                        uart5_tx_buf, (uint16_t)sizeof(uart5_tx_buf));
+    if (ret != 0) { return (int)ret; }
 #endif
-
 #if defined(BSP_USING_UART6)
-    stm_uart_drv[UART6_INDEX].rx_cache_buf = uart6_rx_cache_buf;
-    stm_uart_drv[UART6_INDEX].rx_cache_bufsz = sizeof(uart6_rx_cache_buf);
-    serial_dev[UART6_INDEX].rx_buf   = uart6_rx_buf;
-    serial_dev[UART6_INDEX].rx_bufsz = sizeof(uart6_rx_buf);
-    serial_dev[UART6_INDEX].tx_buf   = uart6_tx_buf;
-    serial_dev[UART6_INDEX].tx_bufsz = sizeof(uart6_tx_buf);
+    ret = Uart_Register(Uart_Find(UART6_INDEX), (uint8_t)UART6_INDEX,
+                        uart6_rx_buf, (uint16_t)sizeof(uart6_rx_buf),
+                        uart6_tx_buf, (uint16_t)sizeof(uart6_tx_buf));
+    if (ret != 0) { return (int)ret; }
 #endif
-
 #if defined(BSP_USING_UART7)
-    stm_uart_drv[UART7_INDEX].rx_cache_buf = uart7_rx_cache_buf;
-    stm_uart_drv[UART7_INDEX].rx_cache_bufsz = sizeof(uart7_rx_cache_buf);
-    serial_dev[UART7_INDEX].rx_buf   = uart7_rx_buf;
-    serial_dev[UART7_INDEX].rx_bufsz = sizeof(uart7_rx_buf);
-    serial_dev[UART7_INDEX].tx_buf   = uart7_tx_buf;
-    serial_dev[UART7_INDEX].tx_bufsz = sizeof(uart7_tx_buf);
+    ret = Uart_Register(Uart_Find(UART7_INDEX), (uint8_t)UART7_INDEX,
+                        uart7_rx_buf, (uint16_t)sizeof(uart7_rx_buf),
+                        uart7_tx_buf, (uint16_t)sizeof(uart7_tx_buf));
+    if (ret != 0) { return (int)ret; }
 #endif
-
 #if defined(BSP_USING_UART8)
-    stm_uart_drv[UART8_INDEX].rx_cache_buf = uart8_rx_cache_buf;
-    stm_uart_drv[UART8_INDEX].rx_cache_bufsz = sizeof(uart8_rx_cache_buf);
-    serial_dev[UART8_INDEX].rx_buf   = uart8_rx_buf;
-    serial_dev[UART8_INDEX].rx_bufsz = sizeof(uart8_rx_buf);
-    serial_dev[UART8_INDEX].tx_buf   = uart8_tx_buf;
-    serial_dev[UART8_INDEX].tx_bufsz = sizeof(uart8_tx_buf);
+    ret = Uart_Register(Uart_Find(UART8_INDEX), (uint8_t)UART8_INDEX,
+                        uart8_rx_buf, (uint16_t)sizeof(uart8_rx_buf),
+                        uart8_tx_buf, (uint16_t)sizeof(uart8_tx_buf));
+    if (ret != 0) { return (int)ret; }
 #endif
-
 #if defined(BSP_USING_LPUART1)
-    stm_uart_drv[LPUART1_INDEX].rx_cache_buf = lpuart1_rx_cache_buf;
-    stm_uart_drv[LPUART1_INDEX].rx_cache_bufsz = sizeof(lpuart1_rx_cache_buf);
-    serial_dev[LPUART1_INDEX].rx_buf   = lpuart1_rx_buf;
-    serial_dev[LPUART1_INDEX].rx_bufsz = sizeof(lpuart1_rx_buf);
-    serial_dev[LPUART1_INDEX].tx_buf   = lpuart1_tx_buf;
-    serial_dev[LPUART1_INDEX].tx_bufsz = sizeof(lpuart1_tx_buf);
+    ret = Uart_Register(Uart_Find(LPUART1_INDEX), (uint8_t)LPUART1_INDEX,
+                        lpuart1_rx_buf, (uint16_t)sizeof(lpuart1_rx_buf),
+                        lpuart1_tx_buf, (uint16_t)sizeof(lpuart1_tx_buf));
+    if (ret != 0) { return (int)ret; }
+#endif
+    return 0;
+}
+
+/**
+  * @brief  Get stm32_uart context from HAL UART handle
+  * @param  huart HAL UART handle pointer
+  * @retval stm32_uart pointer, NULL if not found
+  */
+static struct stm32_uart *stm32_uart_from_handle(const UART_HandleTypeDef *huart)
+{
+    if (huart == NULL) {
+        return NULL;
+    }
+
+#ifdef BSP_USING_UART1
+    if (huart == stm_uart_drv[UART1_INDEX].huart) {
+        return &stm_uart_drv[UART1_INDEX];
+    }
+#endif
+#ifdef BSP_USING_UART2
+    if (huart == stm_uart_drv[UART2_INDEX].huart) {
+        return &stm_uart_drv[UART2_INDEX];
+    }
+#endif
+#ifdef BSP_USING_UART3
+    if (huart == stm_uart_drv[UART3_INDEX].huart) {
+        return &stm_uart_drv[UART3_INDEX];
+    }
+#endif
+#ifdef BSP_USING_UART4
+    if (huart == stm_uart_drv[UART4_INDEX].huart) {
+        return &stm_uart_drv[UART4_INDEX];
+    }
+#endif
+#ifdef BSP_USING_UART5
+    if (huart == stm_uart_drv[UART5_INDEX].huart) {
+        return &stm_uart_drv[UART5_INDEX];
+    }
+#endif
+#ifdef BSP_USING_UART6
+    if (huart == stm_uart_drv[UART6_INDEX].huart) {
+        return &stm_uart_drv[UART6_INDEX];
+    }
+#endif
+#ifdef BSP_USING_UART7
+    if (huart == stm_uart_drv[UART7_INDEX].huart) {
+        return &stm_uart_drv[UART7_INDEX];
+    }
+#endif
+#ifdef BSP_USING_UART8
+    if (huart == stm_uart_drv[UART8_INDEX].huart) {
+        return &stm_uart_drv[UART8_INDEX];
+    }
+#endif
+#ifdef BSP_USING_LPUART1
+    if (huart == stm_uart_drv[LPUART1_INDEX].huart) {
+        return &stm_uart_drv[LPUART1_INDEX];
+    }
 #endif
 
-    return 0;
+    return NULL;
 }
 
 /* HAL Callback Functions ----------------------------------------------------*/
@@ -1198,10 +486,10 @@ int BSP_UART_Init(void)
   */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-    struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
-    Serial_t *port = &serial_dev[stm_uart->index];
-    if (port) {
-        Serial_TxIsrHook(port);
+    struct stm32_uart *stm_uart = stm32_uart_from_handle(huart);
+
+    if ((stm_uart != NULL) && (stm_uart->port != NULL)) {
+        Uart_TxIsrHook(stm_uart->port);
     }
 }
 
@@ -1213,49 +501,44 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
   */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-    struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
-    Serial_t *port = &serial_dev[stm_uart->index];
+    struct stm32_uart *stm_uart = stm32_uart_from_handle(huart);
     uint16_t process_size;
 
-    if (!port) {
-        return;
-    }
-    
-    /* 防御：DMA 回调 Size 超出缓冲区，直接重启接收 */
-    if (Size > stm_uart->rx_cache_bufsz) {
-        stm_uart->last_pos = 0U;
-        (void)stm32_uart_start_rx(port);
+    if ((stm_uart == NULL) || (stm_uart->port == NULL)) {
         return;
     }
 
-    /* 防御：下溢风险（Size < last_pos），直接丢弃并重启 */
+    /* Guard against underflow (should not occur in DMA_NORMAL mode) */
     if (Size < stm_uart->last_pos) {
         stm_uart->last_pos = 0U;
-        (void)stm32_uart_start_rx(port);
+        (void)STM32_UART_StartReceive(stm_uart->port);
         return;
     }
-    
-    process_size = Size - stm_uart->last_pos;  // 计算需要处理的数据量
-    
-    if (huart->RxEventType == HAL_UART_RXEVENT_HT)
-    {
-        // 半满中断 - 处理前半部分数据
-        if (process_size > 0) {
-            Serial_RxIsrHook(port, stm_uart->rx_cache_buf + stm_uart->last_pos, process_size);
-            stm_uart->last_pos = Size;  // 更新已处理位置
-        }
-    }
-    else if (huart->RxEventType == HAL_UART_RXEVENT_TC ||
-             huart->RxEventType == HAL_UART_RXEVENT_IDLE)
-    {
-        // 传输完成或空闲中断 - 处理剩余数据
-        if (process_size > 0) {
-            Serial_RxIsrHook(port, stm_uart->rx_cache_buf + stm_uart->last_pos, process_size);
-        }
 
-        // 重置位置计数器并重新启动接收
+    process_size = Size - stm_uart->last_pos;
+
+    if (huart->RxEventType == HAL_UART_RXEVENT_HT) {
+        /* Half-transfer: forward new data, keep last_pos for the TC/IDLE half */
+        if (process_size > 0U) {
+            Uart_RxIsrHook(stm_uart->port,
+                           stm_uart->rx_cache_buf + stm_uart->last_pos,
+                           process_size);
+            stm_uart->last_pos = Size;
+        }
+    } else if ((huart->RxEventType == HAL_UART_RXEVENT_TC) ||
+               (huart->RxEventType == HAL_UART_RXEVENT_IDLE)) {
+        /* Transfer complete or idle: forward remaining data, then restart.
+         * STM32_UART_StartReceive resets last_pos to 0 internally. */
+        if (process_size > 0U) {
+            Uart_RxIsrHook(stm_uart->port,
+                           stm_uart->rx_cache_buf + stm_uart->last_pos,
+                           process_size);
+        }
+        (void)STM32_UART_StartReceive(stm_uart->port);
+    } else {
+        /* Unknown event type: restart to recover */
         stm_uart->last_pos = 0U;
-        stm32_uart_start_rx(port);
+        (void)STM32_UART_StartReceive(stm_uart->port);
     }
 }
 
@@ -1266,186 +549,15 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
   */
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
-    struct stm32_uart *stm_uart = container_of(huart, struct stm32_uart, huart);
-    Serial_t *port = &serial_dev[stm_uart->index];
-    
+    struct stm32_uart *stm_uart = stm32_uart_from_handle(huart);
+
+    if ((stm_uart == NULL) || (stm_uart->port == NULL)) {
+        return;
+    }
+
     log_d("UART errno code = %d", huart->ErrorCode);
 
-    /* 重新启动接收 */
-    stm32_uart_start_rx(port);
+    (void)STM32_UART_StartReceive(stm_uart->port);
 }
-
-/* Interrupt Service Routines -----------------------------------------------*/
-#if defined(BSP_USING_UART1)
-    void USART1_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[UART1_INDEX].huart);
-    }
-#if defined(BSP_UART1_RX_USING_DMA)
-    void UART1_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART1_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_UART1_RX_USING_DMA
-#if defined(BSP_UART1_TX_USING_DMA)
-    void UART1_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART1_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_UART1_TX_USING_DMA
-#endif // BSP_USING_UART1
-
-
-#if defined(BSP_USING_UART2)
-    void USART2_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[UART2_INDEX].huart);
-    }
-#if defined(BSP_UART2_RX_USING_DMA)
-    void UART2_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART2_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_UART2_RX_USING_DMA
-#if defined(BSP_UART2_TX_USING_DMA)
-    void UART2_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART2_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_UART2_TX_USING_DMA
-#endif // BSP_USING_UART2
-
-#if defined(BSP_USING_UART3)
-    void USART3_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[UART3_INDEX].huart);
-    }
-#if defined(BSP_UART3_RX_USING_DMA)
-    void UART3_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART3_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_UART3_RX_USING_DMA
-#if defined(BSP_UART3_TX_USING_DMA)
-    void UART3_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART3_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_UART3_TX_USING_DMA
-#endif // BSP_USING_UART3
-
-#if defined(BSP_USING_UART4)
-    void UART4_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[UART4_INDEX].huart);
-    }
-#if defined(BSP_UART4_RX_USING_DMA)
-    void UART4_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART4_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_UART4_RX_USING_DMA
-#if defined(BSP_UART4_TX_USING_DMA)
-    void UART4_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART4_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_UART4_TX_USING_DMA
-#endif // BSP_USING_UART4
-
-#if defined(BSP_USING_UART5)
-    void UART5_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[UART5_INDEX].huart);
-    }
-#if defined(BSP_UART5_RX_USING_DMA)
-    void UART5_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART5_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_UART5_RX_USING_DMA
-#if defined(BSP_UART5_TX_USING_DMA)
-    void UART5_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART5_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_UART5_TX_USING_DMA
-#endif // BSP_USING_UART5
-
-#if defined(BSP_USING_UART6)
-    void USART6_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[UART6_INDEX].huart);
-    }
-#if defined(BSP_UART6_RX_USING_DMA)
-    void UART6_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART6_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_UART6_RX_USING_DMA
-#if defined(BSP_UART6_TX_USING_DMA)
-    void UART6_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART6_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_UART6_TX_USING_DMA
-#endif // BSP_USING_UART6
-
-#if defined(BSP_USING_UART7)
-    void UART7_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[UART7_INDEX].huart);
-    }
-#if defined(BSP_UART7_RX_USING_DMA)
-    void UART7_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART7_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_UART7_RX_USING_DMA
-#if defined(BSP_UART7_TX_USING_DMA)
-    void UART7_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART7_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_UART7_TX_USING_DMA
-#endif // BSP_USING_UART7
-
-#if defined(BSP_USING_UART8)
-    void UART8_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[UART8_INDEX].huart);
-    }
-#if defined(BSP_UART8_RX_USING_DMA)
-    void UART8_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART8_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_UART8_RX_USING_DMA
-#if defined(BSP_UART8_TX_USING_DMA)
-    void UART8_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[UART8_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_UART8_TX_USING_DMA
-#endif // BSP_USING_UART8
-
-#if defined(BSP_USING_LPUART1)
-    void LPUART1_IRQHandler(void)
-    {
-        HAL_UART_IRQHandler(&stm_uart_drv[LPUART1_INDEX].huart);
-    }
-#if defined(BSP_LPUART1_RX_USING_DMA)
-    void LPUART1_DMA_RX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[LPUART1_INDEX].hdma_uart_rx);
-    }
-#endif // BSP_LPUART1_RX_USING_DMA
-#if defined(BSP_LPUART1_TX_USING_DMA)
-    void LPUART1_DMA_TX_IRQHandler(void)
-    {
-        HAL_DMA_IRQHandler(&stm_uart_drv[LPUART1_INDEX].hdma_uart_tx);
-    }
-#endif // BSP_LPUART1_TX_USING_DMA
-#endif // BSP_USING_LPUART1
 
 #endif /* defined(HAL_UART_MODULE_ENABLED) */

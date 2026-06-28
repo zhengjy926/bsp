@@ -15,8 +15,8 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_hwtimer.h"
-#include "hwtimer.h"
-#include "bsp_tim.h"
+#include "dev_hwtimer.h"
+#include "main.h"
 #include "errno-base.h"
 #include <stddef.h>
 #include <stdbool.h>

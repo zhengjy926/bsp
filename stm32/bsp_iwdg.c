@@ -17,8 +17,8 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_iwdg.h"
-#include "bsp_conf.h"
-#include "wdg.h"
+#include "main.h"
+#include "dev_wdg.h"
 #include "errno-base.h"
 #include "board.h"
 #include "mymath.h"

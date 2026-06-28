@@ -32,14 +32,8 @@
 
 /* Exported variables --------------------------------------------------------*/
 
-extern DAC_HandleTypeDef hdac1;
-
-extern DAC_HandleTypeDef hdac3;
-
 /* Exported functions --------------------------------------------------------*/
 
-void MX_DAC1_Init(void);
-void MX_DAC3_Init(void);
 
 #ifdef __cplusplus
 }

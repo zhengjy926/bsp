@@ -19,10 +19,8 @@
 #endif /* __cplusplus */
 
 /* Includes ------------------------------------------------------------------*/
-#include "bsp_conf.h"
 
 /* Exported types ------------------------------------------------------------*/
-
 
 /* Exported constants --------------------------------------------------------*/
 
@@ -31,14 +29,9 @@
 
 
 /* Exported variables --------------------------------------------------------*/
-extern COMP_HandleTypeDef hcomp1;
-
-extern COMP_HandleTypeDef hcomp3;
 
 /* Exported functions --------------------------------------------------------*/
 
-void MX_COMP1_Init(void);
-void MX_COMP3_Init(void);
 
 #ifdef __cplusplus
 }

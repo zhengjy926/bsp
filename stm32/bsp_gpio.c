@@ -16,9 +16,9 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "bsp_gpio.h"
-#include "gpio.h"
+#include "dev_gpio.h"
 #include "errno-base.h"
-#include "bsp_conf.h"
+#include "main.h"
 #include <string.h>
 
 #include "elog.h"
@@ -666,79 +666,79 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     }
 }
 
-/**
- * @brief EXTI0 interrupt handler
- * @return None
- */
-void EXTI0_IRQHandler(void)
-{
-    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
-}
+///**
+// * @brief EXTI0 interrupt handler
+// * @return None
+// */
+//void EXTI0_IRQHandler(void)
+//{
+//    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
+//}
 
-/**
- * @brief EXTI1 interrupt handler
- * @return None
- */
-void EXTI1_IRQHandler(void)
-{
-    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
-}
+///**
+// * @brief EXTI1 interrupt handler
+// * @return None
+// */
+//void EXTI1_IRQHandler(void)
+//{
+//    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
+//}
 
-/**
- * @brief EXTI2 interrupt handler
- * @return None
- */
-void EXTI2_IRQHandler(void)
-{
-    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
-}
+///**
+// * @brief EXTI2 interrupt handler
+// * @return None
+// */
+//void EXTI2_IRQHandler(void)
+//{
+//    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
+//}
 
-/**
- * @brief EXTI3 interrupt handler
- * @return None
- */
-void EXTI3_IRQHandler(void)
-{
-    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
-}
+///**
+// * @brief EXTI3 interrupt handler
+// * @return None
+// */
+//void EXTI3_IRQHandler(void)
+//{
+//    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
+//}
 
-/**
- * @brief EXTI4 interrupt handler
- * @return None
- */
-void EXTI4_IRQHandler(void)
-{
-    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
-}
+///**
+// * @brief EXTI4 interrupt handler
+// * @return None
+// */
+//void EXTI4_IRQHandler(void)
+//{
+//    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
+//}
 
-/**
- * @brief EXTI9_5 interrupt handler
- * @return None
- */
-void EXTI9_5_IRQHandler(void)
-{
-    uint32_t pending = LL_EXTI_ReadFlag_0_31(GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9);
-    if ((pending & GPIO_PIN_5) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_5); }
-    if ((pending & GPIO_PIN_6) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6); }
-    if ((pending & GPIO_PIN_7) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_7); }
-    if ((pending & GPIO_PIN_8) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_8); }
-    if ((pending & GPIO_PIN_9) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_9); }
-}
+///**
+// * @brief EXTI9_5 interrupt handler
+// * @return None
+// */
+//void EXTI9_5_IRQHandler(void)
+//{
+//    uint32_t pending = LL_EXTI_ReadFlag_0_31(GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9);
+//    if ((pending & GPIO_PIN_5) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_5); }
+//    if ((pending & GPIO_PIN_6) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6); }
+//    if ((pending & GPIO_PIN_7) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_7); }
+//    if ((pending & GPIO_PIN_8) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_8); }
+//    if ((pending & GPIO_PIN_9) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_9); }
+//}
 
-/**
- * @brief EXTI15_10 interrupt handler
- * @return None
- */
-void EXTI15_10_IRQHandler(void)
-{
-    uint32_t pending = LL_EXTI_ReadFlag_0_31(GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
-    if ((pending & GPIO_PIN_10) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_10); }
-    if ((pending & GPIO_PIN_11) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_11); }
-    if ((pending & GPIO_PIN_12) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_12); }
-    if ((pending & GPIO_PIN_13) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13); }
-    if ((pending & GPIO_PIN_14) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14); }
-    if ((pending & GPIO_PIN_15) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_15); }
-}
+///**
+// * @brief EXTI15_10 interrupt handler
+// * @return None
+// */
+//void EXTI15_10_IRQHandler(void)
+//{
+//    uint32_t pending = LL_EXTI_ReadFlag_0_31(GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
+//    if ((pending & GPIO_PIN_10) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_10); }
+//    if ((pending & GPIO_PIN_11) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_11); }
+//    if ((pending & GPIO_PIN_12) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_12); }
+//    if ((pending & GPIO_PIN_13) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13); }
+//    if ((pending & GPIO_PIN_14) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14); }
+//    if ((pending & GPIO_PIN_15) != 0U) { HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_15); }
+//}
 
 /**
  * @brief Initialize BSP GPIO
